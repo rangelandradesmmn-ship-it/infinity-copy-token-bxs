@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getAllUsers, setCurrentSessionUserId } from '@/lib/dataService';
-import { LogIn, ArrowRight, AlertCircle, KeyRound, Loader2 } from 'lucide-react';
+import { authenticateUser } from '@/lib/dataService';
+import { LogIn, ArrowRight, AlertCircle, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
 
 export default function UserLoginPage() {
   const router = useRouter();
@@ -21,18 +21,16 @@ export default function UserLoginPage() {
     setLoading(true);
 
     try {
-      const users = await getAllUsers();
-      const match = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+      const res = await authenticateUser(email, password);
 
-      if (match) {
-        setCurrentSessionUserId(match.id);
-        if (match.role === 'admin') {
+      if (res.success && res.user) {
+        if (res.user.role === 'admin') {
           router.push('/admin');
         } else {
           router.push('/painel');
         }
       } else {
-        setError('E-mail ou senha incorretos. Verifique suas credenciais.');
+        setError(res.message);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Falha na autenticação.');
@@ -134,10 +132,10 @@ export default function UserLoginPage() {
           </button>
         </form>
 
-        {/* Quick Demo Logins for instant review */}
+        {/* Demo Credentials Helper */}
         <div className="mt-8 pt-6 border-t border-slate-800">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-center mb-3">
-            Acesso Rápido para Demonstração:
+            Credenciais de Teste (Parceiros):
           </p>
           <div className="flex flex-wrap justify-center gap-2 text-xs">
             <button
@@ -154,21 +152,27 @@ export default function UserLoginPage() {
             >
               Maria Santos (/p/maria)
             </button>
-            <button
-              type="button"
-              onClick={() => quickLoginAs('admin@saas.com')}
-              className="px-2.5 py-1.5 rounded-lg bg-purple-950/80 hover:bg-purple-900 text-purple-300 border border-purple-800 transition-colors"
-            >
-              Super Admin
-            </button>
           </div>
+          <p className="text-[11px] text-slate-500 text-center mt-2">
+            Senha padrão de teste dos parceiros: <code className="text-slate-300">senha123456</code>
+          </p>
         </div>
 
-        <div className="text-center mt-6 text-xs text-slate-400">
-          Ainda não tem conta de parceiro?{' '}
-          <Link href="/painel/cadastro" className="text-blue-400 hover:underline font-semibold">
-            Cadastre-se Gratuitamente
-          </Link>
+        <div className="text-center mt-6 text-xs text-slate-400 space-y-2">
+          <div>
+            Ainda não tem conta de parceiro?{' '}
+            <Link href="/painel/cadastro" className="text-blue-400 hover:underline font-semibold">
+              Cadastre-se Gratuitamente
+            </Link>
+          </div>
+          <div className="pt-2 border-t border-slate-800/60">
+            <Link
+              href="/admin/login"
+              className="text-purple-400 hover:text-purple-300 hover:underline font-semibold inline-flex items-center gap-1 text-[11px]"
+            >
+              Área do Administrador Master (Super Admin) &rarr;
+            </Link>
+          </div>
         </div>
       </div>
     </div>

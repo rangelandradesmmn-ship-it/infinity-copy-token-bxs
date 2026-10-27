@@ -14,6 +14,7 @@ import {
   generateSlug,
   validateImageFile,
 } from '../src/lib/security';
+import { authenticateUser } from '../src/lib/dataService';
 
 console.log('================================================================');
 console.log(' INICIANDO BATERIA DE TESTES OBRIGATÓRIOS DO SAAS (18 PONTOS) ');
@@ -260,12 +261,37 @@ assert(
   '38. URL oficial de compartilhamento do WhatsApp codificada com sucesso'
 );
 
-console.log('\n================================================================');
-console.log(` RESULTADO: ${passedTests} DE ${totalTests} TESTES APROVADOS COM SUCESSO! `);
-console.log('================================================================\n');
+(async () => {
+  // ------------------------------------------------------------------
+  // TESTE 12: Autenticação Segura & Separação de Acessos (Admin vs Parceiro)
+  // ------------------------------------------------------------------
+  console.log('\n--- Módulo 12: Autenticação Segura & Separação de Acessos ---');
 
-if (passedTests === totalTests) {
-  process.exit(0);
-} else {
-  process.exit(1);
-}
+  const adminAuth = await authenticateUser('admin@saas.com', 'admin123');
+  assert(adminAuth.success === true && adminAuth.user?.role === 'admin', '39. Admin autentica com sucesso com senha correta e recebe role admin');
+
+  const adminWrongPass = await authenticateUser('admin@saas.com', 'senha-incorreta');
+  assert(adminWrongPass.success === false, '40. Admin é rejeitado com senha incorreta');
+
+  const joaoAuth = await authenticateUser('joao@parceiro.com', 'senha123456');
+  assert(joaoAuth.success === true && joaoAuth.user?.role === 'user', '41. Parceiro João autentica com sucesso com sua senha');
+
+  const joaoWrongPass = await authenticateUser('joao@parceiro.com', 'errada123');
+  assert(joaoWrongPass.success === false, '42. Parceiro é rejeitado com senha incorreta');
+
+  const carlosBlocked = await authenticateUser('carlos@parceiro.com', 'senha123456');
+  assert(carlosBlocked.success === false && carlosBlocked.message.includes('suspensa'), '43. Parceiro bloqueado tem acesso negado no login');
+
+  const nonExistent = await authenticateUser('desconhecido@teste.com', 'qualquer123');
+  assert(nonExistent.success === false, '44. E-mail não cadastrado é rejeitado com aviso amigável');
+
+  console.log('\n================================================================');
+  console.log(` RESULTADO: ${passedTests} DE ${totalTests} TESTES APROVADOS COM SUCESSO! `);
+  console.log('================================================================\n');
+
+  if (passedTests === totalTests) {
+    process.exit(0);
+  } else {
+    process.exit(1);
+  }
+})();

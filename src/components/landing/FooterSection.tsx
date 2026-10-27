@@ -55,9 +55,18 @@ export function FooterSection({ footer, brand, user }: FooterSectionProps) {
           </div>
         </div>
 
-        <div className="pt-6 text-center text-xs text-slate-400 leading-relaxed max-w-3xl mx-auto">
+        <div className="pt-6 text-center text-xs text-slate-400 leading-relaxed max-w-3xl mx-auto space-y-2">
           <p>{footer.legalText}</p>
-          <p className="mt-2 text-slate-400">
+          <div className="flex items-center justify-center gap-4 text-[11px] text-slate-500 pt-1">
+            <a href="/painel/login" className="hover:text-blue-400 transition-colors">
+              Portal do Parceiro
+            </a>
+            <span>&bull;</span>
+            <a href="/admin/login" className="hover:text-purple-400 transition-colors">
+              Acesso Super Admin
+            </a>
+          </div>
+          <p className="mt-2 text-slate-500">
             © {year} {footer.companyName}. Todos os direitos reservados.
           </p>
         </div>

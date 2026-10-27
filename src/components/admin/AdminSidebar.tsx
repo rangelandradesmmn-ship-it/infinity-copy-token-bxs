@@ -2,7 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { logoutUser } from '@/lib/dataService';
 import {
   LayoutDashboard,
   Palette,
@@ -11,10 +12,17 @@ import {
   ExternalLink,
   ShieldAlert,
   ArrowLeft,
+  LogOut,
 } from 'lucide-react';
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    logoutUser();
+    router.push('/admin/login');
+  };
 
   const navItems = [
     {
@@ -86,6 +94,14 @@ export function AdminSidebar() {
           <span>Página Principal (Master)</span>
           <ExternalLink className="w-3.5 h-3.5" />
         </Link>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 rounded-lg transition-colors text-left"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Sair do Administrador</span>
+        </button>
       </div>
     </aside>
   );

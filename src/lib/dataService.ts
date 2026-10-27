@@ -28,6 +28,14 @@ const STORAGE_KEYS = {
   EVENTS: 'clonelp_events',
   AUDIT: 'clonelp_audit_logs',
   SESSION_USER: 'clonelp_current_user_id',
+  PASSWORDS: 'clonelp_passwords',
+};
+
+export const defaultPasswords: Record<string, string> = {
+  'admin-uuid-0001': 'admin123',
+  'user-uuid-0001': 'senha123456',
+  'user-uuid-0002': 'senha123456',
+  'user-uuid-0003': 'senha123456',
 };
 
 // --- In-Memory & LocalStorage Persistence for Mock/Local Mode ---
@@ -69,20 +77,88 @@ export function initLocalDatabase() {
   if (!localStorage.getItem(STORAGE_KEYS.AUDIT)) {
     setLocalItem(STORAGE_KEYS.AUDIT, seedAuditLogs);
   }
+  if (!localStorage.getItem(STORAGE_KEYS.PASSWORDS)) {
+    setLocalItem(STORAGE_KEYS.PASSWORDS, defaultPasswords);
+  }
 }
 
 // -------------------------------------------------------------
-// Current Authentication Session (Local & Supabase Auth Bridge)
+// Current Authentication Session & Password Authentication
 // -------------------------------------------------------------
-export function getCurrentSessionUserId(): string {
-  if (typeof window === 'undefined') return 'admin-uuid-0001';
+export function getCurrentSessionUserId(): string | null {
+  if (typeof window === 'undefined') return null;
   const saved = localStorage.getItem(STORAGE_KEYS.SESSION_USER);
-  return saved || 'admin-uuid-0001';
+  return saved && saved.trim() ? saved.trim() : null;
 }
 
 export function setCurrentSessionUserId(userId: string): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(STORAGE_KEYS.SESSION_USER, userId);
+}
+
+export function logoutUser(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(STORAGE_KEYS.SESSION_USER);
+}
+
+export async function getCurrentSessionUser(): Promise<UserWithSettings | null> {
+  const userId = getCurrentSessionUserId();
+  if (!userId) return null;
+  return await getUserById(userId);
+}
+
+export async function authenticateUser(
+  email: string,
+  passwordInput: string
+): Promise<{ success: boolean; user?: UserWithSettings; message: string }> {
+  initLocalDatabase();
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanPassword = passwordInput.trim();
+
+  if (!cleanEmail || !cleanPassword) {
+    return { success: false, message: 'Por favor, preencha o e-mail e a senha.' };
+  }
+
+  const allUsers = await getAllUsers();
+  const user = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
+
+  if (!user) {
+    return {
+      success: false,
+      message: 'Nenhum usuário cadastrado com este e-mail. Verifique suas credenciais.',
+    };
+  }
+
+  const passwords = getLocalItem<Record<string, string>>(
+    STORAGE_KEYS.PASSWORDS,
+    defaultPasswords
+  );
+
+  const expectedPassword =
+    passwords[user.id] || (user.role === 'admin' ? 'admin123' : 'senha123456');
+
+  if (cleanPassword !== expectedPassword) {
+    return {
+      success: false,
+      message: 'Senha incorreta. Por favor, tente novamente.',
+    };
+  }
+
+  if (user.status === 'blocked') {
+    return {
+      success: false,
+      message: 'Esta conta está temporariamente suspensa pela administração. Entre em contato com o suporte.',
+    };
+  }
+
+  // Set active session in local storage
+  setCurrentSessionUserId(user.id);
+
+  return {
+    success: true,
+    user,
+    message: 'Autenticação realizada com sucesso!',
+  };
 }
 
 // -------------------------------------------------------------
@@ -850,7 +926,8 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
 export async function registerNewUser(
   name: string,
   email: string,
-  slugCandidate?: string
+  slugCandidate?: string,
+  password?: string
 ): Promise<{ success: boolean; user?: UserWithSettings; message: string }> {
   initLocalDatabase();
   const users = getLocalItem<UserProfile[]>(STORAGE_KEYS.USERS, seedUsers);
@@ -912,6 +989,13 @@ export async function registerNewUser(
     );
     allSettings[userId] = initialSettings;
     setLocalItem(STORAGE_KEYS.SETTINGS, allSettings);
+
+    const passwords = getLocalItem<Record<string, string>>(
+      STORAGE_KEYS.PASSWORDS,
+      defaultPasswords
+    );
+    passwords[userId] = password && password.trim() ? password.trim() : 'senha123456';
+    setLocalItem(STORAGE_KEYS.PASSWORDS, passwords);
   }
 
   return {

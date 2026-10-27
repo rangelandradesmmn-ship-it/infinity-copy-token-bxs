@@ -36,7 +36,7 @@ export default function UserRegisterPage() {
 
     setLoading(true);
     try {
-      const res = await registerNewUser(name, email, slugCandidate);
+      const res = await registerNewUser(name, email, slugCandidate, password);
 
       if (res.success && res.user) {
         setSuccess('Cadastro concluído com sucesso! Redirecionando...');

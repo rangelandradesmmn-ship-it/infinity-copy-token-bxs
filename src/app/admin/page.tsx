@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   AdminDashboardMetrics,
   UserWithSettings,
@@ -9,6 +10,7 @@ import {
   LandingPageVersion,
 } from '@/types';
 import {
+  getCurrentSessionUser,
   getAdminDashboardMetrics,
   getAllUsers,
   getAuditLogs,
@@ -24,6 +26,8 @@ import { VersionHistoryModal } from '@/components/admin/VersionHistoryModal';
 import { Palette, ExternalLink, Loader2, RefreshCw, History, Trophy } from 'lucide-react';
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
   const [metrics, setMetrics] = useState<AdminDashboardMetrics | null>(null);
   const [users, setUsers] = useState<UserWithSettings[]>([]);
   const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>([]);
@@ -54,14 +58,23 @@ export default function AdminDashboardPage() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    async function checkAuthAndLoad() {
+      const user = await getCurrentSessionUser();
+      if (!user || user.role !== 'admin') {
+        router.replace('/admin/login');
+        return;
+      }
+      setAuthorized(true);
+      await loadData();
+    }
+    checkAuthAndLoad();
+  }, [router]);
 
-  if (loading || !metrics) {
+  if (!authorized || loading || !metrics) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300">
         <Loader2 className="w-10 h-10 animate-spin text-purple-500 mb-4" />
-        <p className="text-sm font-medium">Carregando painel do Super Admin...</p>
+        <p className="text-sm font-medium">Verificando permissões de Super Admin...</p>
       </div>
     );
   }

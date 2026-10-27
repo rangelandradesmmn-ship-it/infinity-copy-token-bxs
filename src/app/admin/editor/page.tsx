@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { LandingPageContent, LandingPageVersion, UserWithSettings } from '@/types';
 import {
+  getCurrentSessionUser,
   getDraftLandingPage,
   getLandingPageVersions,
   getAllUsers,
@@ -13,6 +15,8 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { Loader2, ArrowLeft } from 'lucide-react';
 
 export default function AdminEditorPage() {
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
   const [content, setContent] = useState<LandingPageContent | null>(null);
   const [versions, setVersions] = useState<LandingPageVersion[]>([]);
   const [users, setUsers] = useState<UserWithSettings[]>([]);
@@ -36,14 +40,23 @@ export default function AdminEditorPage() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    async function checkAuthAndLoad() {
+      const user = await getCurrentSessionUser();
+      if (!user || user.role !== 'admin') {
+        router.replace('/admin/login');
+        return;
+      }
+      setAuthorized(true);
+      await loadData();
+    }
+    checkAuthAndLoad();
+  }, [router]);
 
-  if (loading || !content) {
+  if (!authorized || loading || !content) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300">
         <Loader2 className="w-10 h-10 animate-spin text-purple-500 mb-4" />
-        <p className="text-sm font-medium">Carregando Editor Master...</p>
+        <p className="text-sm font-medium">Verificando permissões de Super Admin...</p>
       </div>
     );
   }

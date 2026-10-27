@@ -3,13 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { UserWithSettings, UserMetrics } from '@/types';
 import {
   getUserById,
   getUserMetrics,
   getCurrentSessionUserId,
-  setCurrentSessionUserId,
-  getAllUsers,
+  logoutUser,
 } from '@/lib/dataService';
 import { UserMetricsCards } from '@/components/user/UserMetricsCards';
 import { PersonalizationForm } from '@/components/user/PersonalizationForm';
@@ -25,16 +25,15 @@ import {
   Loader2,
   LogOut,
   User,
-  Users,
   Settings,
   Sparkles,
   QrCode,
 } from 'lucide-react';
 
 export default function UserPanelPage() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<UserWithSettings | null>(null);
   const [metrics, setMetrics] = useState<UserMetrics | null>(null);
-  const [allUsers, setAllUsers] = useState<UserWithSettings[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -52,10 +51,8 @@ export default function UserPanelPage() {
     try {
       const u = await getUserById(userId);
       const m = await getUserMetrics(userId);
-      const all = await getAllUsers();
       setCurrentUser(u);
       setMetrics(m);
-      setAllUsers(all);
     } catch (err) {
       console.error('Failed to load user in panel:', err);
     } finally {
@@ -64,24 +61,32 @@ export default function UserPanelPage() {
   };
 
   useEffect(() => {
-    const sessionUserId = getCurrentSessionUserId();
-    // Default to João Silva for standard user experience if session is admin
-    const targetUserId =
-      sessionUserId === 'admin-uuid-0001' ? 'user-uuid-0001' : sessionUserId;
-    loadUserData(targetUserId);
-  }, []);
+    async function checkAuthAndLoad() {
+      const sessionUserId = getCurrentSessionUserId();
+      if (!sessionUserId) {
+        router.replace('/painel/login');
+        return;
+      }
+      const user = await getUserById(sessionUserId);
+      if (!user) {
+        router.replace('/painel/login');
+        return;
+      }
+      await loadUserData(user.id);
+    }
+    checkAuthAndLoad();
+  }, [router]);
 
-  // Switch demo user
-  const handleSwitchUser = (userId: string) => {
-    setCurrentSessionUserId(userId);
-    loadUserData(userId);
+  const handleLogout = () => {
+    logoutUser();
+    router.push('/painel/login');
   };
 
   if (loading || !currentUser) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300">
         <Loader2 className="w-10 h-10 animate-spin text-blue-500 mb-4" />
-        <p className="text-sm font-medium">Carregando seu painel exclusivo...</p>
+        <p className="text-sm font-medium">Verificando credenciais e carregando seu painel...</p>
       </div>
     );
   }
@@ -118,44 +123,31 @@ export default function UserPanelPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* User Switcher for Instant Testing */}
-            <div className="hidden md:flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-1 text-xs">
-              <span className="text-slate-400 px-2 flex items-center gap-1">
-                <Users className="w-3 h-3" /> Testar como:
-              </span>
-              {allUsers
-                .filter((u) => u.role !== 'admin')
-                .map((u) => (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => handleSwitchUser(u.id)}
-                    className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
-                      currentUser.id === u.id
-                        ? 'bg-blue-600 text-white'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {u.name.split(' ')[0]} {u.status === 'blocked' ? '(Bloqueado)' : ''}
-                  </button>
-                ))}
+            {/* Current Logged-in Badge */}
+            <div className="hidden md:flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="font-semibold text-white">{currentUser.name}</span>
+              <span className="text-slate-500">({currentUser.email})</span>
             </div>
 
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-300 bg-purple-950/60 border border-purple-800 hover:bg-purple-900/60 transition-colors"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Super Admin</span>
-            </Link>
+            {currentUser.role === 'admin' && (
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-300 bg-purple-950/60 border border-purple-800 hover:bg-purple-900/60 transition-colors"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Super Admin</span>
+              </Link>
+            )}
 
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition-colors"
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Sair</span>
-            </Link>
+              <span>Sair</span>
+            </button>
           </div>
         </div>
       </header>

@@ -67,13 +67,20 @@ export interface LandingPageContent {
     primaryColor: string; // e.g. '#2563eb'
     accentColor: string; // e.g. '#10b981'
     darkTheme: boolean;
+    fontFamily?: string; // e.g. 'Inter', 'Montserrat', 'Poppins', 'Oswald', etc.
+    headingFontFamily?: string;
   };
   hero: {
     enabled: boolean;
     badge: string;
     title: string;
     titleHighlight: string;
+    titleSize?: 'sm' | 'md' | 'lg' | 'xl';
+    titleFontSizePx?: number;
+    titleMaxWidth?: '3xl' | '4xl' | '5xl' | '6xl' | 'full';
+    fontFamily?: string;
     subtitle: string;
+    subtitleSize?: 'sm' | 'md' | 'lg';
     showConsultantCard: boolean;
     primaryCtaText: string;
     secondaryCtaText: string;

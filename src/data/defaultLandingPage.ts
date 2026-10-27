@@ -7,12 +7,16 @@ export const initialLandingPageContent: LandingPageContent = {
     primaryColor: '#2563eb', // Modern Blue
     accentColor: '#10b981', // Emerald Green
     darkTheme: false,
+    fontFamily: 'Inter',
+    headingFontFamily: 'Inter',
   },
   hero: {
     enabled: true,
     badge: '🚀 Plataforma Oficial de Expansão & Resultados',
     title: 'Transforme Seus Resultados com a Maior Tecnologia de',
     titleHighlight: 'Crescimento e Distribuição Digital',
+    titleSize: 'md',
+    titleMaxWidth: '4xl',
     subtitle:
       'Descubra o ecossistema validado por milhares de profissionais. Treinamentos de ponta, suporte humanizado e uma estrutura pronta para você alavancar sua jornada hoje mesmo.',
     showConsultantCard: true,

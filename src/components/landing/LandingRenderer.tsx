@@ -20,11 +20,24 @@ interface LandingRendererProps {
   isPreview?: boolean;
 }
 
+export const FONT_FAMILY_MAP: Record<string, string> = {
+  'Inter': "'Inter', sans-serif",
+  'Montserrat': "'Montserrat', sans-serif",
+  'Poppins': "'Poppins', sans-serif",
+  'Plus Jakarta Sans': "'Plus Jakarta Sans', sans-serif",
+  'Outfit': "'Outfit', sans-serif",
+  'Oswald': "'Oswald', sans-serif",
+  'Space Grotesk': "'Space Grotesk', sans-serif",
+  'Roboto': "'Roboto', sans-serif",
+  'System': "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+};
+
 export function LandingRenderer({
   content,
   user,
   isPreview = false,
 }: LandingRendererProps) {
+  const activeFont = FONT_FAMILY_MAP[content.brand?.fontFamily || 'Inter'] || FONT_FAMILY_MAP['Inter'];
   // 1. Resolve registration URL: user's personal link or master default
   const registrationUrl = useMemo(() => {
     if (user?.settings?.registration_url && user.settings.registration_url.trim()) {
@@ -97,7 +110,10 @@ export function LandingRenderer({
   }, [user, isPreview, pagePath, whatsAppUrl]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+    <div
+      className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white"
+      style={{ fontFamily: activeFont }}
+    >
       {/* Navigation Header */}
       <LandingHeader
         brand={content.brand}

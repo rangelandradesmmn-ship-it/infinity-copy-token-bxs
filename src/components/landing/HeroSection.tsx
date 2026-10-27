@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { UserWithSettings, LandingPageContent } from '@/types';
 import { VideoPlayer } from '@/components/ui/VideoPlayer';
 import { Sparkles, ArrowRight, MessageCircle, ShieldCheck, User } from 'lucide-react';
+import { FONT_FAMILY_MAP } from './LandingRenderer';
 
 interface HeroSectionProps {
   hero: LandingPageContent['hero'];
@@ -15,6 +16,27 @@ interface HeroSectionProps {
   onRegistrationClick: () => void;
   onWhatsAppClick: () => void;
 }
+
+const TITLE_SIZE_CLASSES: Record<string, string> = {
+  sm: 'text-2xl sm:text-3xl lg:text-4xl leading-tight', // Compacto (excelente para caber textos longos)
+  md: 'text-3xl sm:text-4xl lg:text-5xl leading-tight', // Médio equilibrado
+  lg: 'text-4xl sm:text-5xl lg:text-6xl leading-[1.12]', // Grande
+  xl: 'text-5xl sm:text-6xl lg:text-7xl leading-[1.08]', // Extra grande
+};
+
+const TITLE_MAX_WIDTH_CLASSES: Record<string, string> = {
+  '3xl': 'max-w-3xl',
+  '4xl': 'max-w-4xl',
+  '5xl': 'max-w-5xl',
+  '6xl': 'max-w-6xl',
+  'full': 'max-w-full',
+};
+
+const SUBTITLE_SIZE_CLASSES: Record<string, string> = {
+  sm: 'text-sm sm:text-base md:text-lg',
+  md: 'text-base sm:text-lg md:text-xl',
+  lg: 'text-lg sm:text-xl md:text-2xl',
+};
 
 export function HeroSection({
   hero,
@@ -30,6 +52,22 @@ export function HeroSection({
   const displayName = user?.name || 'Consultor Oficial';
   const profileImageUrl = user?.settings?.profile_image_url;
 
+  // Resolve heading typography and sizing
+  const headingFont = FONT_FAMILY_MAP[hero.fontFamily || brand.headingFontFamily || brand.fontFamily || 'Inter'] || undefined;
+  const titleSizeClass = TITLE_SIZE_CLASSES[hero.titleSize || 'md'] || TITLE_SIZE_CLASSES['md'];
+  const titleMaxWidthClass = TITLE_MAX_WIDTH_CLASSES[hero.titleMaxWidth || '4xl'] || 'max-w-4xl';
+  const subtitleSizeClass = SUBTITLE_SIZE_CLASSES[hero.subtitleSize || 'md'] || SUBTITLE_SIZE_CLASSES['md'];
+
+  const customTitleStyle: React.CSSProperties = {
+    ...(headingFont ? { fontFamily: headingFont } : {}),
+    ...(hero.titleFontSizePx
+      ? {
+          fontSize: `clamp(${Math.max(20, Math.round(hero.titleFontSizePx * 0.62))}px, 4.5vw, ${hero.titleFontSizePx}px)`,
+          lineHeight: 1.15,
+        }
+      : {}),
+  };
+
   return (
     <section className="relative overflow-hidden pt-12 pb-20 md:pt-20 md:pb-28 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
       {/* Background Decorative Glow */}
@@ -39,7 +77,7 @@ export function HeroSection({
       />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
-        <div className="text-center max-w-3xl mx-auto mb-10">
+        <div className={`text-center ${titleMaxWidthClass} mx-auto mb-10`}>
           {/* Badge */}
           {hero.badge && (
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/80 text-xs sm:text-sm font-medium text-slate-200 backdrop-blur-md mb-6 shadow-sm">
@@ -48,8 +86,11 @@ export function HeroSection({
             </div>
           )}
 
-          {/* Heading */}
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.15] mb-6">
+          {/* Heading with configurable font size & font family */}
+          <h1
+            className={`${titleSizeClass} font-extrabold tracking-tight mb-6`}
+            style={customTitleStyle}
+          >
             <span>{hero.title} </span>
             <span
               className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-emerald-400"
@@ -62,7 +103,7 @@ export function HeroSection({
           </h1>
 
           {/* Subtitle */}
-          <p className="text-base sm:text-lg md:text-xl text-slate-300 leading-relaxed mb-8">
+          <p className={`${subtitleSizeClass} text-slate-300 leading-relaxed mb-8`}>
             {hero.subtitle}
           </p>
 

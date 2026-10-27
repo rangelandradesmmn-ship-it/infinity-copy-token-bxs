@@ -34,7 +34,21 @@ import {
   HelpCircle,
   Video,
   Upload,
+  Type,
+  SlidersHorizontal,
 } from 'lucide-react';
+import { FONT_FAMILY_MAP } from '@/components/landing/LandingRenderer';
+
+export const FONT_OPTIONS = [
+  { id: 'Inter', name: 'Inter', desc: 'Moderna & Clean (Padrão)' },
+  { id: 'Montserrat', name: 'Montserrat', desc: 'Geométrica & Marcante' },
+  { id: 'Poppins', name: 'Poppins', desc: 'Arredondada & Tech' },
+  { id: 'Plus Jakarta Sans', name: 'Plus Jakarta Sans', desc: 'Design SaaS Moderno' },
+  { id: 'Outfit', name: 'Outfit', desc: 'Elegante & Futurista' },
+  { id: 'Oswald', name: 'Oswald (Condensada)', desc: 'Ideal para textos longos caberem na tela' },
+  { id: 'Space Grotesk', name: 'Space Grotesk', desc: 'Web3, Cripto & Inovação' },
+  { id: 'Roboto', name: 'Roboto', desc: 'Clássica & Neutra' },
+];
 
 interface MasterEditorProps {
   initialContent: LandingPageContent;
@@ -448,6 +462,300 @@ export function MasterEditor({
                 }
                 className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs"
               />
+            </div>
+
+            {/* BOX DE AJUSTE DE TIPOGRAFIA, TAMANHO E LARGURA DO TÍTULO */}
+            <div className="md:col-span-2 bg-slate-950/80 border border-purple-500/30 rounded-2xl p-5 space-y-6">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
+                    <Type className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                      Tipografia & Tamanho do Título Principal (Para Caber o Texto)
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Ajuste o tipo da fonte, reduza ou aumente o tamanho e configure a largura do bloco para textos longos.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/30 font-semibold">
+                  Personalizável
+                </span>
+              </div>
+
+              {/* 1. Prévia em Tempo Real do Título */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 text-center space-y-2">
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>Pré-visualização do Título:</span>
+                  <span className="text-purple-400 font-mono text-[10px]">
+                    Fonte: {content.hero.fontFamily || content.brand.headingFontFamily || content.brand.fontFamily || 'Inter'} • Tamanho: {content.hero.titleFontSizePx ? `${content.hero.titleFontSizePx}px` : (content.hero.titleSize === 'sm' ? 'Pequeno (~36px)' : content.hero.titleSize === 'lg' ? 'Grande (~56px)' : content.hero.titleSize === 'xl' ? 'Extra Grande (~68px)' : 'Médio (~44px)')}
+                  </span>
+                </div>
+                <div className="py-3 px-2 border-y border-slate-800/60 overflow-hidden">
+                  <h2
+                    className="font-extrabold tracking-tight transition-all"
+                    style={{
+                      fontFamily: FONT_FAMILY_MAP[content.hero.fontFamily || content.brand.headingFontFamily || content.brand.fontFamily || 'Inter'],
+                      fontSize: content.hero.titleFontSizePx
+                        ? `clamp(20px, 4vw, ${content.hero.titleFontSizePx}px)`
+                        : content.hero.titleSize === 'sm'
+                        ? '1.875rem'
+                        : content.hero.titleSize === 'lg'
+                        ? '2.75rem'
+                        : content.hero.titleSize === 'xl'
+                        ? '3.5rem'
+                        : '2.25rem',
+                      lineHeight: 1.15,
+                    }}
+                  >
+                    <span>{content.hero.title || 'Título Principal Aqui'} </span>
+                    <span
+                      className="bg-clip-text text-transparent bg-gradient-to-r"
+                      style={{
+                        backgroundImage: `linear-gradient(to right, ${content.brand.primaryColor || '#3b82f6'}, ${content.brand.accentColor || '#10b981'})`,
+                      }}
+                    >
+                      {content.hero.titleHighlight || 'Destaque Colorido'}
+                    </span>
+                  </h2>
+                </div>
+              </div>
+
+              {/* 2. Seleção do Tipo de Fonte (Família Tipográfica) */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-200">
+                  Tipo da Fonte do Título (Família Tipográfica)
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {FONT_OPTIONS.map((font) => {
+                    const isSelected = (content.hero.fontFamily || content.brand.headingFontFamily || content.brand.fontFamily || 'Inter') === font.id;
+                    return (
+                      <button
+                        key={font.id}
+                        type="button"
+                        onClick={() =>
+                          setContent((prev) => ({
+                            ...prev,
+                            hero: { ...prev.hero, fontFamily: font.id },
+                          }))
+                        }
+                        className={`p-2.5 rounded-xl border text-left transition-all ${
+                          isSelected
+                            ? 'bg-purple-600/20 border-purple-500 text-white shadow-sm ring-1 ring-purple-500'
+                            : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs" style={{ fontFamily: FONT_FAMILY_MAP[font.id] }}>
+                            {font.name}
+                          </span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-purple-400" />}
+                        </div>
+                        <p className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">
+                          {font.desc}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Seleção de Tamanho Predefinido */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-200">
+                    Tamanho Predefinido do Título
+                  </label>
+                  <span className="text-[11px] text-slate-400">
+                    (Escolha um preset ou use o controle em pixels abaixo)
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'sm', label: 'Compacto / Pequeno', desc: 'Ideal para textos longos de 2 a 3 linhas', px: 34 },
+                    { id: 'md', label: 'Médio (Equilibrado)', desc: 'Tamanho recomendado padrão', px: 44 },
+                    { id: 'lg', label: 'Grande (Marcante)', desc: 'Destaque visual forte e impactante', px: 56 },
+                    { id: 'xl', label: 'Extra Grande', desc: 'Impacto máximo para frases curtas', px: 68 },
+                  ].map((preset) => {
+                    const isSelected = (content.hero.titleSize || 'md') === preset.id && !content.hero.titleFontSizePx;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() =>
+                          setContent((prev) => ({
+                            ...prev,
+                            hero: {
+                              ...prev.hero,
+                              titleSize: preset.id as any,
+                              titleFontSizePx: undefined,
+                            },
+                          }))
+                        }
+                        className={`p-2.5 rounded-xl border text-left transition-all ${
+                          isSelected
+                            ? 'bg-blue-600/20 border-blue-500 text-white shadow-sm ring-1 ring-blue-500'
+                            : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs">{preset.label}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-blue-400" />}
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-0.5">{preset.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 4. Ajuste Fino Manual de Tamanho (Slider) */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+                    <label className="text-xs font-semibold text-slate-200">
+                      Ajuste Fino de Tamanho em Pixels (Slider)
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold text-purple-300 bg-purple-500/20 px-2.5 py-0.5 rounded-md border border-purple-500/30">
+                      {content.hero.titleFontSizePx ? `${content.hero.titleFontSizePx}px` : (
+                        content.hero.titleSize === 'sm' ? '~34px (Compacto)' :
+                        content.hero.titleSize === 'lg' ? '~56px (Grande)' :
+                        content.hero.titleSize === 'xl' ? '~68px (Extra Grande)' :
+                        '~44px (Médio)'
+                      )}
+                    </span>
+                    {content.hero.titleFontSizePx && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setContent((prev) => ({
+                            ...prev,
+                            hero: { ...prev.hero, titleFontSizePx: undefined },
+                          }))
+                        }
+                        className="text-[10px] text-slate-400 hover:text-white underline"
+                      >
+                        Redefinir
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min={24}
+                  max={72}
+                  step={2}
+                  value={content.hero.titleFontSizePx || (
+                    content.hero.titleSize === 'sm' ? 34 :
+                    content.hero.titleSize === 'lg' ? 56 :
+                    content.hero.titleSize === 'xl' ? 68 :
+                    44
+                  )}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setContent((prev) => ({
+                      ...prev,
+                      hero: { ...prev.hero, titleFontSizePx: val },
+                    }));
+                  }}
+                  className="w-full h-2 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                />
+                <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                  <span>24px (Mínimo compacto)</span>
+                  <span>44px (Padrão equilibrado)</span>
+                  <span>72px (Impacto máximo)</span>
+                </div>
+              </div>
+
+              {/* 5. Largura Máxima do Bloco (Para o Texto Caber na Horizontal) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-200">
+                    Largura Máxima do Bloco do Título
+                  </label>
+                  <span className="text-[11px] text-slate-400">
+                    (Evita que frases longas quebrem em 6 ou 7 linhas)
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: '3xl', label: 'Estreito (768px)', desc: 'Bloco compacto padrão' },
+                    { id: '4xl', label: 'Amplo (896px)', desc: 'Recomendado para títulos médios' },
+                    { id: '5xl', label: 'Expandido (1024px)', desc: 'Excelente para frases longas' },
+                    { id: '6xl', label: 'Máximo (1152px)', desc: 'Aproveita toda a largura da tela' },
+                  ].map((widthOpt) => {
+                    const isSelected = (content.hero.titleMaxWidth || '4xl') === widthOpt.id;
+                    return (
+                      <button
+                        key={widthOpt.id}
+                        type="button"
+                        onClick={() =>
+                          setContent((prev) => ({
+                            ...prev,
+                            hero: { ...prev.hero, titleMaxWidth: widthOpt.id as any },
+                          }))
+                        }
+                        className={`p-2 rounded-xl border text-left transition-all ${
+                          isSelected
+                            ? 'bg-emerald-600/20 border-emerald-500 text-white ring-1 ring-emerald-500'
+                            : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs">{widthOpt.label}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-0.5">{widthOpt.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 6. Tamanho do Subtítulo */}
+              <div className="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <span className="text-xs font-semibold text-slate-300 block">
+                    Tamanho do Texto do Subtítulo / Descrição
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    Ajuste o tamanho do texto explicativo abaixo do título
+                  </span>
+                </div>
+                <div className="inline-flex rounded-xl bg-slate-900 p-1 border border-slate-800">
+                  {[
+                    { id: 'sm', label: 'Pequeno' },
+                    { id: 'md', label: 'Médio' },
+                    { id: 'lg', label: 'Grande' },
+                  ].map((subOpt) => {
+                    const isSelected = (content.hero.subtitleSize || 'md') === subOpt.id;
+                    return (
+                      <button
+                        key={subOpt.id}
+                        type="button"
+                        onClick={() =>
+                          setContent((prev) => ({
+                            ...prev,
+                            hero: { ...prev.hero, subtitleSize: subOpt.id as any },
+                          }))
+                        }
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                          isSelected
+                            ? 'bg-purple-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {subOpt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             <div>
@@ -934,6 +1242,59 @@ export function MasterEditor({
                     />
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* 4. Tipografia & Fonte Global da Marca */}
+            <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
+                    <Type className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                      Tipografia Geral da Página (Fonte Padrão)
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Escolha a família tipográfica aplicada à estrutura e textos de todas as páginas.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] text-purple-400 font-mono px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20">
+                  Ativa: {content.brand.fontFamily || 'Inter'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {FONT_OPTIONS.map((font) => {
+                  const isSelected = (content.brand.fontFamily || 'Inter') === font.id;
+                  return (
+                    <button
+                      key={font.id}
+                      type="button"
+                      onClick={() =>
+                        setContent((prev) => ({
+                          ...prev,
+                          brand: { ...prev.brand, fontFamily: font.id },
+                        }))
+                      }
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        isSelected
+                          ? 'bg-purple-600/20 border-purple-500 text-white shadow-sm ring-1 ring-purple-500'
+                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm" style={{ fontFamily: FONT_FAMILY_MAP[font.id] }}>
+                          {font.name}
+                        </span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-purple-400" />}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1 line-clamp-1">{font.desc}</p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

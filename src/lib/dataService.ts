@@ -342,6 +342,38 @@ export async function getLandingPageVersions(): Promise<LandingPageVersion[]> {
   return versions.sort((a, b) => b.version_number - a.version_number);
 }
 
+export async function restoreLandingPageVersion(
+  versionId: string,
+  adminId: string
+): Promise<{ success: boolean; versionNumber: number; message: string; content?: LandingPageContent }> {
+  const versions = await getLandingPageVersions();
+  const target = versions.find((v) => v.id === versionId);
+
+  if (!target) {
+    return { success: false, versionNumber: 0, message: 'Versão selecionada não foi encontrada.' };
+  }
+
+  // Publish this content as the latest version
+  const result = await publishLandingPage(target.content_json, adminId);
+
+  if (result.success) {
+    await logAdminAction(adminId, 'RESTORE_VERSION', 'landing_page_version', versionId, {
+      restoredFromVersion: target.version_number,
+      newPublishedVersion: result.versionNumber,
+      note: `Versão #${target.version_number} restaurada e publicada como Versão #${result.versionNumber}. Todas as páginas clonadas foram atualizadas preservando os dados individuais dos parceiros.`,
+    });
+
+    return {
+      success: true,
+      versionNumber: result.versionNumber,
+      message: `Versão #${target.version_number} restaurada com sucesso como Versão #${result.versionNumber}! Todas as páginas foram sincronizadas.`,
+      content: target.content_json,
+    };
+  }
+
+  return { success: false, versionNumber: 0, message: result.message };
+}
+
 // -------------------------------------------------------------
 // User Management & Slug Resolution
 // -------------------------------------------------------------
@@ -791,7 +823,8 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
     const views = userEvents.filter((e) => e.event_type === 'page_view').length;
     const regClicks = userEvents.filter((e) => e.event_type === 'registration_click').length;
     const waClicks = userEvents.filter((e) => e.event_type === 'whatsapp_click').length;
-    return { user, views, regClicks, waClicks };
+    const ctr = views > 0 ? Number(((regClicks / views) * 100).toFixed(1)) : 0;
+    return { user, views, regClicks, waClicks, ctr };
   });
 
   topUsers.sort((a, b) => b.views + b.regClicks - (a.views + a.regClicks));

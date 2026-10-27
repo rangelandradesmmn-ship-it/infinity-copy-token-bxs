@@ -13,6 +13,7 @@ import {
 } from '@/lib/dataService';
 import { UserMetricsCards } from '@/components/user/UserMetricsCards';
 import { PersonalizationForm } from '@/components/user/PersonalizationForm';
+import { EasyShareModal } from '@/components/user/EasyShareModal';
 import {
   Copy,
   Check,
@@ -27,6 +28,7 @@ import {
   Users,
   Settings,
   Sparkles,
+  QrCode,
 } from 'lucide-react';
 
 export default function UserPanelPage() {
@@ -35,6 +37,7 @@ export default function UserPanelPage() {
   const [allUsers, setAllUsers] = useState<UserWithSettings[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const [origin, setOrigin] = useState('');
 
   // Read current origin on mount
@@ -262,6 +265,15 @@ export default function UserPanelPage() {
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
 
+              <button
+                type="button"
+                onClick={() => setShareModalOpen(true)}
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition-colors shadow-md shadow-purple-950/40"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Compartilhar & QR Code</span>
+              </button>
+
               <a
                 href={whatsappShareUrl}
                 target="_blank"
@@ -270,7 +282,6 @@ export default function UserPanelPage() {
               >
                 <MessageCircle className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">WhatsApp</span>
-                <Share2 className="w-3.5 h-3.5 sm:hidden" />
               </a>
             </div>
           </div>
@@ -305,6 +316,14 @@ export default function UserPanelPage() {
           />
         </section>
       </main>
+
+      {/* Feature 3: Compartilhamento Fácil Modal */}
+      <EasyShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        landingUrl={landingUrl}
+        userName={currentUser.name}
+      />
     </div>
   );
 }

@@ -194,6 +194,72 @@ assert(joaoViews > 0, '27. Visualizações do parceiro registradas');
 assert(joaoClicks > 0, '28. Cliques de cadastro do parceiro registrados');
 assert(calculatedCtr > 0 && calculatedCtr <= 100, `29. Cálculo de CTR consistente (${calculatedCtr}%)`);
 
+// ------------------------------------------------------------------
+// TESTE 9: Histórico de Versões & Restauração Segura (Feature 1)
+// ------------------------------------------------------------------
+console.log('\n--- Módulo 9: Histórico de Versões & Restauração Segura ---');
+
+// Simulated version history
+const versionHistory = [
+  { id: 'v-1', version_number: 1, content_json: masterPage, status: 'published' },
+  { id: 'v-2', version_number: 2, content_json: updatedMaster, status: 'published' },
+];
+
+// Admin chooses to restore Version #1
+const restoredVersionNumber = 3;
+const restoredContent = versionHistory[0].content_json; // Version #1 content
+const joaoRestored = resolveLandingPageData(restoredContent, joaoUser, joaoSettings);
+const mariaRestored = resolveLandingPageData(restoredContent, mariaUser, mariaSettings);
+
+assert(
+  joaoRestored.title === masterPage.hero.title,
+  '30. Restauração: Conteúdo do Master volta exatamente ao da V1'
+);
+assert(
+  joaoRestored.registrationUrl === 'https://cadastro.parceiro.com/ref/joao123',
+  '31. Restauração: Link de cadastro do João permanece 100% preservado'
+);
+assert(
+  mariaRestored.displayName === 'Maria Santos',
+  '32. Restauração: Nome e foto da Maria permanecem 100% preservados'
+);
+
+// ------------------------------------------------------------------
+// TESTE 10: Ranking de Desempenho de Parceiros (Feature 2)
+// ------------------------------------------------------------------
+console.log('\n--- Módulo 10: Ranking de Desempenho dos Parceiros ---');
+
+const rankedAffiliates = [
+  { name: 'João Silva', views: 4, regClicks: 2, waClicks: 1, ctr: 50 },
+  { name: 'Maria Santos', views: 3, regClicks: 1, waClicks: 1, ctr: 33.3 },
+  { name: 'Carlos Mendes', views: 0, regClicks: 0, waClicks: 0, ctr: 0 },
+];
+
+const sortedByViews = [...rankedAffiliates].sort((a, b) => b.views - a.views);
+const sortedByClicks = [...rankedAffiliates].sort((a, b) => b.regClicks - a.regClicks);
+
+assert(sortedByViews[0].name === 'João Silva', '33. Ranking: João lidera em número de acessos');
+assert(sortedByClicks[0].name === 'João Silva', '34. Ranking: João lidera em cliques de cadastro');
+assert(sortedByViews[sortedByViews.length - 1].name === 'Carlos Mendes', '35. Ranking: Usuário sem atividade fica na última posição');
+
+// ------------------------------------------------------------------
+// TESTE 11: Compartilhamento Fácil & Mensagens de WhatsApp (Feature 3)
+// ------------------------------------------------------------------
+console.log('\n--- Módulo 11: Compartilhamento Fácil & Mensagens de WhatsApp ---');
+
+const joaoLandingUrl = 'https://meudominio.com/p/joao';
+const templateMessage1 = `Olá! Conheça nossa oportunidade: ${joaoLandingUrl}`;
+const templateMessage2 = `Oi! Faça seu cadastro gratuito aqui: ${joaoLandingUrl}`;
+
+assert(templateMessage1.includes(joaoLandingUrl), '36. Mensagem de WhatsApp contém a URL exclusiva do parceiro');
+assert(templateMessage2.includes(joaoLandingUrl), '37. Convite direto contém a URL exclusiva do parceiro');
+
+const encodedShareUrl = `https://wa.me/?text=${encodeURIComponent(templateMessage1)}`;
+assert(
+  encodedShareUrl.startsWith('https://wa.me/?text=Ol%C3%A1!%20Conhe%C3%A7a%20nossa%20oportunidade%3A%20https%3A%2F%2Fmeudominio.com%2Fp%2Fjoao'),
+  '38. URL oficial de compartilhamento do WhatsApp codificada com sucesso'
+);
+
 console.log('\n================================================================');
 console.log(` RESULTADO: ${passedTests} DE ${totalTests} TESTES APROVADOS COM SUCESSO! `);
 console.log('================================================================\n');

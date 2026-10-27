@@ -13,32 +13,39 @@ import {
   getAllUsers,
   getAuditLogs,
   getPublishedLandingPage,
+  getLandingPageVersions,
 } from '@/lib/dataService';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminMetricsOverview } from '@/components/admin/AdminMetricsOverview';
+import { AdminLeaderboard } from '@/components/admin/AdminLeaderboard';
 import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
 import { AdminAuditTable } from '@/components/admin/AdminAuditTable';
-import { Palette, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
+import { VersionHistoryModal } from '@/components/admin/VersionHistoryModal';
+import { Palette, ExternalLink, Loader2, RefreshCw, History, Trophy } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const [metrics, setMetrics] = useState<AdminDashboardMetrics | null>(null);
   const [users, setUsers] = useState<UserWithSettings[]>([]);
   const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>([]);
+  const [versions, setVersions] = useState<LandingPageVersion[]>([]);
   const [publishedVersionNumber, setPublishedVersionNumber] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const loadData = async () => {
     try {
-      const [m, u, a, p] = await Promise.all([
+      const [m, u, a, p, v] = await Promise.all([
         getAdminDashboardMetrics(),
         getAllUsers(),
         getAuditLogs(),
         getPublishedLandingPage(),
+        getLandingPageVersions(),
       ]);
       setMetrics(m);
       setUsers(u);
       setAuditLogs(a);
       setPublishedVersionNumber(p.versionNumber);
+      setVersions(v);
     } catch (err) {
       console.error('Failed to load admin dashboard data:', err);
     } finally {
@@ -71,11 +78,20 @@ export default function AdminDashboardPage() {
           <div>
             <h1 className="text-lg font-bold text-white">Dashboard do Administrador</h1>
             <p className="text-xs text-slate-400 hidden sm:block">
-              Visão geral de métricas, parceiros cadastrados e sincronização das landing pages.
+              Visão geral de métricas, ranking de parceiros e sincronização das landing pages.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition-colors"
+            >
+              <History className="w-3.5 h-3.5 text-purple-400" />
+              <span className="hidden sm:inline">Histórico de Versões</span>
+            </button>
+
             <button
               type="button"
               onClick={loadData}
@@ -112,6 +128,14 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(true)}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors"
+              >
+                <History className="w-3.5 h-3.5 text-purple-400" />
+                <span>Restaurar Versão</span>
+              </button>
               <Link
                 href="/admin/editor"
                 className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs transition-colors shadow-lg"
@@ -132,6 +156,9 @@ export default function AdminDashboardPage() {
           {/* Metrics */}
           <AdminMetricsOverview metrics={metrics} />
 
+          {/* Feature 2: Ranking de Desempenho (Leaderboard) */}
+          <AdminLeaderboard topUsers={metrics.topUsers} />
+
           {/* Users Table */}
           <AdminUsersTable users={users} onUserStatusChanged={loadData} />
 
@@ -139,6 +166,18 @@ export default function AdminDashboardPage() {
           <AdminAuditTable logs={auditLogs} />
         </main>
       </div>
+
+      {/* Feature 1: Histórico de Versões Modal */}
+      <VersionHistoryModal
+        isOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        versions={versions}
+        currentVersionNumber={publishedVersionNumber}
+        testUsers={users}
+        onRestored={() => {
+          loadData();
+        }}
+      />
     </div>
   );
 }

@@ -12,11 +12,9 @@ import {
   FaqItem,
   AspectRatio,
 } from '@/types';
-import {
-  saveLandingPageDraft,
-  publishLandingPage,
-} from '@/lib/dataService';
+import { saveLandingPageDraft, publishLandingPage } from '@/lib/dataService';
 import { LivePreviewModal } from './LivePreviewModal';
+import { VersionHistoryModal } from './VersionHistoryModal';
 import {
   Save,
   Send,
@@ -61,6 +59,7 @@ export function MasterEditor({
     null
   );
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
   // Draft Save Handler
   const handleSaveDraft = async () => {
@@ -236,26 +235,15 @@ export function MasterEditor({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
-          {/* Versions History Dropdown */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5">
-            <History className="w-3.5 h-3.5" />
-            <select
-              onChange={(e) => {
-                if (e.target.value) handleRestoreVersion(e.target.value);
-              }}
-              defaultValue=""
-              className="bg-transparent text-slate-300 text-xs focus:outline-none cursor-pointer"
-            >
-              <option value="" disabled>
-                Restaurar Versão...
-              </option>
-              {versions.map((v) => (
-                <option key={v.id} value={v.id}>
-                  Versão #{v.version_number} ({v.status})
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Versions History Dropdown & Modal Button */}
+          <button
+            type="button"
+            onClick={() => setHistoryModalOpen(true)}
+            className="px-3.5 py-2 bg-slate-850 hover:bg-slate-800 text-purple-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-purple-500/30 transition-colors"
+          >
+            <History className="w-3.5 h-3.5 text-purple-400" />
+            <span>Histórico de Versões</span>
+          </button>
 
           <button
             type="button"
@@ -1194,6 +1182,19 @@ export function MasterEditor({
         onClose={() => setPreviewOpen(false)}
         content={content}
         testUsers={testUsers}
+      />
+
+      {/* Version History Modal */}
+      <VersionHistoryModal
+        isOpen={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        versions={versions}
+        currentVersionNumber={versions.find((v) => v.status === 'published')?.version_number || 1}
+        testUsers={testUsers}
+        onRestored={(newVer) => {
+          onPublished(newVer);
+          setHistoryModalOpen(false);
+        }}
       />
     </div>
   );

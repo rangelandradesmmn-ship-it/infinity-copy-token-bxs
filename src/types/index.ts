@@ -181,10 +181,11 @@ export interface AdminDashboardMetrics {
   totalWhatsappClicks: number;
   globalCtr: number;
   topUsers: Array<{
-    user: UserProfile;
+    user: UserWithSettings;
     views: number;
     regClicks: number;
     waClicks: number;
+    ctr: number;
   }>;
   recentUsers: UserProfile[];
   recentEvents: LandingEvent[];

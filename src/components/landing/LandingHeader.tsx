@@ -25,12 +25,23 @@ export function LandingHeader({
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         {/* Brand Logo & Name */}
         <div className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-md"
-            style={{ backgroundColor: brand.primaryColor || '#2563eb' }}
-          >
-            {brand.name.charAt(0)}
-          </div>
+          {brand.logoUrl ? (
+            <div className="h-9 flex items-center shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={brand.logoUrl}
+                alt={brand.name}
+                className="h-9 w-auto max-w-[180px] object-contain rounded-lg"
+              />
+            </div>
+          ) : (
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-md shrink-0"
+              style={{ backgroundColor: brand.primaryColor || '#2563eb' }}
+            >
+              {brand.name ? brand.name.charAt(0).toUpperCase() : 'N'}
+            </div>
+          )}
           <span className="font-bold text-white text-base sm:text-lg tracking-tight">
             {brand.name}
           </span>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import {
   LandingPageContent,
@@ -33,6 +33,7 @@ import {
   Shield,
   HelpCircle,
   Video,
+  Upload,
 } from 'lucide-react';
 
 interface MasterEditorProps {
@@ -51,7 +52,7 @@ export function MasterEditor({
   const [content, setContent] = useState<LandingPageContent>(initialContent);
   const [activeTab, setActiveTab] = useState<
     'brand' | 'hero' | 'videos' | 'benefits' | 'consultant' | 'testimonials' | 'faq' | 'cta' | 'defaults'
-  >('hero');
+  >('brand');
 
   const [savingDraft, setSavingDraft] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -60,6 +61,43 @@ export function MasterEditor({
   );
   const [previewOpen, setPreviewOpen] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(file.type)) {
+      setFeedback({
+        type: 'error',
+        text: 'Formato de imagem inválido. Utilize PNG, JPG, WEBP ou SVG.',
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setContent((prev) => ({
+          ...prev,
+          brand: { ...prev.brand, logoUrl: reader.result as string },
+        }));
+        setFeedback({
+          type: 'success',
+          text: 'Logotipo carregado com sucesso! Veja a prévia e publique quando desejar.',
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setContent((prev) => ({
+      ...prev,
+      brand: { ...prev.brand, logoUrl: '' },
+    }));
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
 
   // Draft Save Handler
   const handleSaveDraft = async () => {
@@ -304,9 +342,9 @@ export function MasterEditor({
       {/* Tabs Navigation */}
       <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-3 text-xs font-semibold">
         {[
+          { id: 'brand', label: 'Empresa & Logotipo', icon: Palette },
           { id: 'hero', label: 'Hero & Vídeo Principal', icon: Layout },
           { id: 'videos', label: 'Galeria de Vídeos', icon: Video },
-          { id: 'brand', label: 'Identidade & Cores', icon: Palette },
           { id: 'benefits', label: 'Benefícios', icon: Sparkles },
           { id: 'consultant', label: 'Seção do Consultor', icon: Shield },
           { id: 'testimonials', label: 'Depoimentos', icon: MessageSquare },
@@ -688,14 +726,66 @@ export function MasterEditor({
         </div>
       )}
 
-      {/* TAB 3: BRAND & COLORS */}
+      {/* TAB: BRAND, LOGO & COMPANY NAME */}
       {activeTab === 'brand' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6">
-          <h2 className="text-base font-bold text-white">Identidade Visual & Cores Globais</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Nome da Marca / Ecossistema
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-8">
+          <div className="border-b border-slate-800 pb-4">
+            <h2 className="text-base font-bold text-white">Logotipo e Nome da Empresa Divulgada</h2>
+            <p className="text-xs text-slate-400">
+              Personalize o nome e o logotipo da empresa que aparecem no cabeçalho (navbar) e no rodapé de todas as landing pages principais e clonadas.
+            </p>
+          </div>
+
+          {/* Live Header Preview Box */}
+          <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                Prévia do Topo da Página (Como os visitantes verão):
+              </span>
+              <span className="text-[10px] text-purple-400 font-medium">Tempo Real</span>
+            </div>
+
+            <div className="h-16 px-6 bg-slate-950/95 rounded-2xl border border-slate-800/80 flex items-center justify-between shadow-inner">
+              <div className="flex items-center gap-3">
+                {content.brand.logoUrl ? (
+                  <div className="h-9 flex items-center shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={content.brand.logoUrl}
+                      alt={content.brand.name}
+                      className="h-9 w-auto max-w-[180px] object-contain rounded-lg"
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-md shrink-0"
+                    style={{ backgroundColor: content.brand.primaryColor || '#2563eb' }}
+                  >
+                    {content.brand.name ? content.brand.name.charAt(0).toUpperCase() : 'N'}
+                  </div>
+                )}
+                <span className="font-bold text-white text-base sm:text-lg tracking-tight">
+                  {content.brand.name || 'Nome da Sua Empresa'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="hidden sm:inline-block px-3 py-1 rounded-lg bg-emerald-950/70 border border-emerald-500/40 text-emerald-400 text-xs font-semibold">
+                  WhatsApp
+                </span>
+                <span className="px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 text-xs">
+                  Área do Membro
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Configuration Inputs */}
+          <div className="space-y-6">
+            {/* 1. Nome da Empresa */}
+            <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-5 space-y-2">
+              <label className="block text-xs font-semibold text-slate-200">
+                Texto / Nome da Empresa Divulgada
               </label>
               <input
                 type="text"
@@ -704,69 +794,146 @@ export function MasterEditor({
                   setContent((prev) => ({
                     ...prev,
                     brand: { ...prev.brand, name: e.target.value },
+                    footer: { ...prev.footer, companyName: e.target.value },
                   }))
                 }
-                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs"
+                placeholder="Ex: Minha Empresa Digital, NextScale Ecosystem, Vital Cosméticos..."
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-purple-500 transition-colors"
               />
+              <p className="text-[11px] text-slate-400">
+                Este texto substitui a marca ao lado do logotipo na barra superior e no rodapé oficial.
+              </p>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Cor Primária (Hex)
-              </label>
-              <div className="flex items-center gap-2">
+            {/* 2. Logotipo da Empresa */}
+            <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-200 mb-1">
+                  Logotipo da Empresa (Imagem)
+                </label>
+                <p className="text-xs text-slate-400">
+                  Envie o arquivo do seu logotipo ou informe uma URL externa de imagem.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-3">
                 <input
-                  type="color"
-                  value={content.brand.primaryColor}
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  onChange={handleLogoFileUpload}
+                  className="hidden"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors shadow-lg shadow-purple-950/40"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Enviar Imagem do Logotipo</span>
+                </button>
+
+                {content.brand.logoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="w-full sm:w-auto px-4 py-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Remover Logo (Usar Ícone Monograma)</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Direct URL input */}
+              <div className="pt-2">
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                  Ou informe o link direto da imagem (URL HTTPS):
+                </label>
+                <input
+                  type="url"
+                  value={content.brand.logoUrl || ''}
                   onChange={(e) =>
                     setContent((prev) => ({
                       ...prev,
-                      brand: { ...prev.brand, primaryColor: e.target.value },
+                      brand: { ...prev.brand, logoUrl: e.target.value },
                     }))
                   }
-                  className="w-10 h-10 rounded-xl bg-transparent border-0 cursor-pointer"
+                  placeholder="https://sua-empresa.com/imagens/logo.png"
+                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-purple-500"
                 />
-                <input
-                  type="text"
-                  value={content.brand.primaryColor}
-                  onChange={(e) =>
-                    setContent((prev) => ({
-                      ...prev,
-                      brand: { ...prev.brand, primaryColor: e.target.value },
-                    }))
-                  }
-                  className="flex-1 px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-xs"
-                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Formatos ideais: PNG com fundo transparente ou SVG vetorial.
+                </p>
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Cor de Destaque / Acentos (Hex)
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={content.brand.accentColor}
-                  onChange={(e) =>
-                    setContent((prev) => ({
-                      ...prev,
-                      brand: { ...prev.brand, accentColor: e.target.value },
-                    }))
-                  }
-                  className="w-10 h-10 rounded-xl bg-transparent border-0 cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={content.brand.accentColor}
-                  onChange={(e) =>
-                    setContent((prev) => ({
-                      ...prev,
-                      brand: { ...prev.brand, accentColor: e.target.value },
-                    }))
-                  }
-                  className="flex-1 px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-xs"
-                />
+            {/* 3. Cores Institucionais */}
+            <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-5 space-y-4">
+              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                Cores Institucionais da Marca
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Cor Primária (Botões e Destaques Principais)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={content.brand.primaryColor}
+                      onChange={(e) =>
+                        setContent((prev) => ({
+                          ...prev,
+                          brand: { ...prev.brand, primaryColor: e.target.value },
+                        }))
+                      }
+                      className="w-10 h-10 rounded-xl bg-transparent border-0 cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={content.brand.primaryColor}
+                      onChange={(e) =>
+                        setContent((prev) => ({
+                          ...prev,
+                          brand: { ...prev.brand, primaryColor: e.target.value },
+                        }))
+                      }
+                      className="flex-1 px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Cor de Destaque / Acentos (Secundária)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={content.brand.accentColor}
+                      onChange={(e) =>
+                        setContent((prev) => ({
+                          ...prev,
+                          brand: { ...prev.brand, accentColor: e.target.value },
+                        }))
+                      }
+                      className="w-10 h-10 rounded-xl bg-transparent border-0 cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={content.brand.accentColor}
+                      onChange={(e) =>
+                        setContent((prev) => ({
+                          ...prev,
+                          brand: { ...prev.brand, accentColor: e.target.value },
+                        }))
+                      }
+                      className="flex-1 px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

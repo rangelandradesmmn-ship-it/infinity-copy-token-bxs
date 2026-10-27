@@ -15,13 +15,25 @@ export function FooterSection({ footer, brand, user }: FooterSectionProps) {
     <footer className="py-12 bg-slate-950 border-t border-slate-900 text-slate-400 text-xs sm:text-sm">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-slate-900">
-          <div>
-            <span className="text-base font-bold text-white tracking-tight">
-              {brand.name}
-            </span>
-            {footer.cnpj && (
-              <p className="text-xs text-slate-500 mt-1">CNPJ: {footer.cnpj}</p>
-            )}
+          <div className="flex items-center gap-3">
+            {brand.logoUrl ? (
+              <div className="h-8 flex items-center shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={brand.logoUrl}
+                  alt={brand.name}
+                  className="h-8 w-auto max-w-[140px] object-contain rounded-md"
+                />
+              </div>
+            ) : null}
+            <div>
+              <span className="text-base font-bold text-white tracking-tight block">
+                {brand.name}
+              </span>
+              {footer.cnpj && (
+                <p className="text-xs text-slate-500 mt-0.5">CNPJ: {footer.cnpj}</p>
+              )}
+            </div>
           </div>
 
           {user && (

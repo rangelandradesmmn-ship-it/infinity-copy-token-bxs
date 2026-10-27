@@ -8,8 +8,8 @@ import { initialLandingPageContent } from '@/data/defaultLandingPage';
 import { Loader2 } from 'lucide-react';
 
 export default function HomePage() {
-  const [content, setContent] = useState<LandingPageContent | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [content, setContent] = useState<LandingPageContent>(initialLandingPageContent);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     async function load() {

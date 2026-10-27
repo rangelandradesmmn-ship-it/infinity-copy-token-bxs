@@ -178,7 +178,7 @@ export const initialLandingPageContent: LandingPageContent = {
   },
   tokenSection: {
     enabled: true,
-    badge: '🟢 Gráfico em Tempo Real',
+    badge: 'Gráfico em Tempo Real',
     title: 'Acompanhe a Cotação do Token BXS',
     subtitle:
       'Monitoramento ao vivo de preço, liquidez e negociações descentralizadas na rede Binance Smart Chain (BSC).',

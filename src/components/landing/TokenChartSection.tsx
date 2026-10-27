@@ -76,20 +76,24 @@ export function TokenChartSection({
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-10">
+        <div className="text-center max-w-4xl sm:max-w-5xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-emerald-400 text-xs sm:text-sm font-semibold mb-4 backdrop-blur-md">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span>{tokenSection.badge || '🟢 Gráfico em Tempo Real'}</span>
+            <span>
+              {tokenSection.badge
+                ? tokenSection.badge.replace(/^🟢\s*/, '')
+                : 'Gráfico em Tempo Real'}
+            </span>
           </div>
 
-          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">
+          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight mb-3">
             {tokenSection.title || 'Acompanhe a Cotação do Token BXS'}
           </h2>
 
-          <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
+          <p className="text-slate-400 text-xs sm:text-sm md:text-base leading-relaxed max-w-3xl mx-auto">
             {tokenSection.subtitle ||
               'Monitoramento ao vivo de preço, volume e liquidez descentralizada na rede BNB Smart Chain (BSC).'}
           </p>

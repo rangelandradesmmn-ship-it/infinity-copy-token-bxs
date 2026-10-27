@@ -24,7 +24,21 @@ Aplicativo web SaaS moderno, responsivo e seguro para criação, distribuição 
 4. **Regra de Sincronização Global Automática:**
    - Quando o Super Admin edita e publica uma nova versão no Editor Master (ex: troca um vídeo institucional, altera títulos ou identidade visual), **todas as landing pages dos parceiros refletem a mudança imediatamente**, sem perder o nome, foto, link de cadastro e WhatsApp individuais de cada usuário.
 
-5. **Segurança & Controle de Acesso (RLS):**
+5. **Histórico de Versões & Restauração Segura:**
+   - Visualização de todas as versões publicadas da Master Landing Page com data, autor e prévia do conteúdo.
+   - Restauração com 1 clique: o administrador pode reverter a Master para qualquer versão anterior, atualizando todas as páginas dos parceiros no mesmo instante, sem risco de apagar os dados individuais dos usuários.
+
+6. **Ranking de Desempenho dos Parceiros (Leaderboard):**
+   - Painel com pódio (🥇 1º, 🥈 2º, 🥉 3º lugar) identificando quem mais atrai visitantes e cadastros.
+   - Ordenação dinâmica por: Acessos, Cliques em Cadastro, Cliques no WhatsApp e Taxa de Interação (CTR %).
+
+7. **Central de Compartilhamento Fácil & QR Code:**
+   - 1-clique para copiar a URL exclusiva.
+   - Mensagens pré-formatadas para WhatsApp com link integrado prontas para envio imediato.
+   - Gerador de QR Code com download de imagem para impressão em panfletos e cartões.
+   - Suporte ao compartilhamento nativo em celulares (`navigator.share`).
+
+8. **Segurança & Controle de Acesso (RLS):**
    - Restrições aplicadas no front-end e no banco de dados (Row Level Security).
    - Tratamento amigável de links inexistentes e contas bloqueadas pelo administrador.
    - Nenhum segredo ou chave privada exposta no navegador.

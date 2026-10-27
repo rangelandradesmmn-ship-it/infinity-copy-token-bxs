@@ -32,12 +32,11 @@ const STORAGE_KEYS = {
   PASSWORDS: 'clonelp_passwords',
 };
 
+const TEST_USER_IDS = new Set(['admin-uuid-0001', 'user-uuid-0001', 'user-uuid-0002', 'user-uuid-0003']);
+const TEST_USER_EMAILS = new Set(['admin@saas.com', 'joao@parceiro.com', 'maria@parceiro.com', 'carlos@parceiro.com']);
+
 export const defaultPasswords: Record<string, string> = {
   'user-rangel-0001': 'senha123456',
-  'admin-uuid-0001': 'admin123',
-  'user-uuid-0001': 'senha123456',
-  'user-uuid-0002': 'senha123456',
-  'user-uuid-0003': 'senha123456',
 };
 
 // --- In-Memory & LocalStorage Persistence for Mock/Local Mode ---
@@ -61,50 +60,69 @@ function setLocalItem<T>(key: string, value: T): void {
   }
 }
 
-// Initialize seed data in local storage if empty
+// Initialize seed data in local storage if empty and purge legacy test data
 export function initLocalDatabase() {
   if (typeof window === 'undefined') return;
 
-  const existingUsers = getLocalItem<UserProfile[]>(STORAGE_KEYS.USERS, []);
-  if (!existingUsers || existingUsers.length === 0) {
-    setLocalItem(STORAGE_KEYS.USERS, seedUsers);
-  } else {
-    // Ensure Rangel is always present even if localStorage was already initialized
-    const rangelExists = existingUsers.some(
-      (u) => u.email.toLowerCase() === 'rangelandradesmmn@gmail.com'
-    );
-    if (!rangelExists) {
-      existingUsers.unshift(seedRangelUser);
-      setLocalItem(STORAGE_KEYS.USERS, existingUsers);
-    }
-  }
+  // 1. Load users and remove any legacy test users
+  let existingUsers = getLocalItem<UserProfile[]>(STORAGE_KEYS.USERS, []);
+  existingUsers = existingUsers.filter(
+    (u) => !TEST_USER_IDS.has(u.id) && !TEST_USER_EMAILS.has(u.email.toLowerCase())
+  );
 
+  // Ensure Rangel is always present
+  const rangelExists = existingUsers.some(
+    (u) => u.email.toLowerCase() === 'rangelandradesmmn@gmail.com'
+  );
+  if (!rangelExists) {
+    existingUsers.unshift(seedRangelUser);
+  }
+  setLocalItem(STORAGE_KEYS.USERS, existingUsers);
+
+  // 2. Settings cleanup
   const existingSettings = getLocalItem<Record<string, UserLandingSettings>>(
     STORAGE_KEYS.SETTINGS,
     seedUserSettings
   );
+  for (const testId of TEST_USER_IDS) {
+    delete existingSettings[testId];
+  }
   if (!existingSettings['user-rangel-0001']) {
     existingSettings['user-rangel-0001'] = seedUserSettings['user-rangel-0001'];
-    setLocalItem(STORAGE_KEYS.SETTINGS, existingSettings);
   }
+  setLocalItem(STORAGE_KEYS.SETTINGS, existingSettings);
+
+  // 3. Passwords cleanup
+  const existingPasswords = getLocalItem<Record<string, string>>(
+    STORAGE_KEYS.PASSWORDS,
+    defaultPasswords
+  );
+  for (const testId of TEST_USER_IDS) {
+    delete existingPasswords[testId];
+  }
+  if (!existingPasswords['user-rangel-0001']) {
+    existingPasswords['user-rangel-0001'] = 'senha123456';
+  }
+  setLocalItem(STORAGE_KEYS.PASSWORDS, existingPasswords);
+
+  // 4. Events cleanup: remove test user clicks/views
+  const existingEvents = getLocalItem<LandingEvent[]>(STORAGE_KEYS.EVENTS, seedEvents);
+  const cleanEvents = existingEvents.filter(
+    (e) => !e.user_id || !TEST_USER_IDS.has(e.user_id)
+  );
+  setLocalItem(STORAGE_KEYS.EVENTS, cleanEvents);
 
   if (!localStorage.getItem(STORAGE_KEYS.VERSIONS)) {
     setLocalItem(STORAGE_KEYS.VERSIONS, seedVersions);
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.EVENTS)) {
-    setLocalItem(STORAGE_KEYS.EVENTS, seedEvents);
   }
   if (!localStorage.getItem(STORAGE_KEYS.AUDIT)) {
     setLocalItem(STORAGE_KEYS.AUDIT, seedAuditLogs);
   }
 
-  const existingPasswords = getLocalItem<Record<string, string>>(
-    STORAGE_KEYS.PASSWORDS,
-    defaultPasswords
-  );
-  if (!existingPasswords['user-rangel-0001']) {
-    existingPasswords['user-rangel-0001'] = 'senha123456';
-    setLocalItem(STORAGE_KEYS.PASSWORDS, existingPasswords);
+  // 5. Update active session if it was pointing to the old test admin
+  const sessionUser = localStorage.getItem(STORAGE_KEYS.SESSION_USER);
+  if (sessionUser && TEST_USER_IDS.has(sessionUser)) {
+    localStorage.setItem(STORAGE_KEYS.SESSION_USER, 'user-rangel-0001');
   }
 }
 
@@ -160,12 +178,13 @@ export async function authenticateUser(
     defaultPasswords
   );
 
+  const storedPassword = passwords[user.id];
   const expectedPassword =
-    passwords[user.id] || (user.role === 'admin' ? 'admin123' : 'senha123456');
+    storedPassword || (user.role === 'admin' ? 'admin123' : 'senha123456');
 
   const isRangelMatch =
     user.email === 'rangelandradesmmn@gmail.com' &&
-    (cleanPassword === 'senha123456' || cleanPassword === 'admin123' || cleanPassword === expectedPassword);
+    (cleanPassword === storedPassword || cleanPassword === 'senha123456' || cleanPassword === 'admin123');
 
   if (cleanPassword !== expectedPassword && !isRangelMatch) {
     return {
@@ -188,6 +207,55 @@ export async function authenticateUser(
     success: true,
     user,
     message: 'Autenticação realizada com sucesso!',
+  };
+}
+
+// -------------------------------------------------------------
+// Password Management (Super Admin & User Self Service)
+// -------------------------------------------------------------
+export async function updateUserPassword(
+  userId: string,
+  newPassword: string,
+  adminId?: string
+): Promise<{ success: boolean; message: string }> {
+  const cleanPassword = newPassword.trim();
+  if (!cleanPassword || cleanPassword.length < 6) {
+    return {
+      success: false,
+      message: 'A nova senha deve conter no mínimo 6 caracteres.',
+    };
+  }
+
+  initLocalDatabase();
+  const allUsers = await getAllUsers();
+  const targetUser = allUsers.find((u) => u.id === userId);
+  if (!targetUser) {
+    return { success: false, message: 'Usuário não encontrado.' };
+  }
+
+  const passwords = getLocalItem<Record<string, string>>(
+    STORAGE_KEYS.PASSWORDS,
+    defaultPasswords
+  );
+  passwords[userId] = cleanPassword;
+  setLocalItem(STORAGE_KEYS.PASSWORDS, passwords);
+
+  // Log audit action
+  await logAdminAction(
+    adminId || userId,
+    'UPDATE_USER_PASSWORD',
+    'user_password',
+    userId,
+    {
+      targetEmail: targetUser.email,
+      targetName: targetUser.name,
+      targetRole: targetUser.role,
+    }
+  );
+
+  return {
+    success: true,
+    message: `Senha de ${targetUser.name} alterada com sucesso!`,
   };
 }
 

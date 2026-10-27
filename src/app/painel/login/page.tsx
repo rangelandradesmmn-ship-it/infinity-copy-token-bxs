@@ -39,11 +39,6 @@ export default function UserLoginPage() {
     }
   };
 
-  const quickLoginAs = (userEmail: string) => {
-    setEmail(userEmail);
-    setPassword('senha123456');
-  };
-
   const handleForgotPassword = () => {
     if (!email) {
       setError('Por favor, informe seu e-mail no campo acima para receber as instruções.');
@@ -132,31 +127,6 @@ export default function UserLoginPage() {
           </button>
         </form>
 
-        {/* Demo Credentials Helper */}
-        <div className="mt-8 pt-6 border-t border-slate-800">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-center mb-3">
-            Credenciais de Teste (Parceiros):
-          </p>
-          <div className="flex flex-wrap justify-center gap-2 text-xs">
-            <button
-              type="button"
-              onClick={() => quickLoginAs('joao@parceiro.com')}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
-            >
-              João Silva (/p/joao)
-            </button>
-            <button
-              type="button"
-              onClick={() => quickLoginAs('maria@parceiro.com')}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
-            >
-              Maria Santos (/p/maria)
-            </button>
-          </div>
-          <p className="text-[11px] text-slate-500 text-center mt-2">
-            Senha padrão de teste dos parceiros: <code className="text-slate-300">senha123456</code>
-          </p>
-        </div>
 
         <div className="text-center mt-6 text-xs text-slate-400 space-y-2">
           <div>

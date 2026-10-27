@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { UserWithSettings, UserStatus } from '@/types';
 import { toggleUserStatus, setCurrentSessionUserId } from '@/lib/dataService';
+import { ChangePasswordModal } from '@/components/admin/ChangePasswordModal';
 import {
   Search,
   ExternalLink,
@@ -13,41 +14,47 @@ import {
   ShieldAlert,
   ShieldCheck,
   User,
-  Sliders,
   LogIn,
+  KeyRound,
+  Shield,
 } from 'lucide-react';
 
 interface AdminUsersTableProps {
   users: UserWithSettings[];
+  currentAdminId?: string;
   onUserStatusChanged: () => void;
 }
 
-export function AdminUsersTable({ users, onUserStatusChanged }: AdminUsersTableProps) {
+export function AdminUsersTable({
+  users,
+  currentAdminId,
+  onUserStatusChanged,
+}: AdminUsersTableProps) {
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'user' | 'admin'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'blocked'>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [passwordModalUser, setPasswordModalUser] = useState<UserWithSettings | null>(null);
 
-  // Filter regular users (hide super admin from affiliate user table)
-  const regularUsers = users.filter((u) => u.role !== 'admin');
-
-  const filtered = regularUsers.filter((u) => {
+  const filtered = users.filter((u) => {
     const matchesSearch =
       u.name.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase()) ||
       u.slug.toLowerCase().includes(search.toLowerCase());
 
-    const matchesStatus =
-      statusFilter === 'all' ? true : u.status === statusFilter;
+    const matchesRole = roleFilter === 'all' ? true : u.role === roleFilter;
+    const matchesStatus = statusFilter === 'all' ? true : u.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesRole && matchesStatus;
   });
 
   const handleToggleStatus = async (user: UserWithSettings) => {
+    if (user.role === 'admin') return; // Cannot block an admin
     const newStatus: UserStatus = user.status === 'active' ? 'blocked' : 'active';
     setUpdatingId(user.id);
     try {
-      await toggleUserStatus(user.id, newStatus, 'admin-uuid-0001');
+      await toggleUserStatus(user.id, newStatus, currentAdminId || 'user-rangel-0001');
       onUserStatusChanged();
     } catch (err) {
       console.error('Failed to toggle status:', err);
@@ -67,13 +74,16 @@ export function AdminUsersTable({ users, onUserStatusChanged }: AdminUsersTableP
     setCurrentSessionUserId(userId);
   };
 
+  const partnersCount = users.filter((u) => u.role !== 'admin').length;
+  const adminsCount = users.filter((u) => u.role === 'admin').length;
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-lg font-bold text-white">Gerenciamento de Parceiros</h2>
+          <h2 className="text-lg font-bold text-white">Gerenciamento de Usuários e Acessos</h2>
           <p className="text-xs text-slate-400">
-            Controle de contas, URLs exclusivas e status de acesso dos usuários.
+            Controle de contas, URLs exclusivas, alteração de senhas e status de acesso.
           </p>
         </div>
 
@@ -93,36 +103,36 @@ export function AdminUsersTable({ users, onUserStatusChanged }: AdminUsersTableP
           <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-xl p-1 text-xs">
             <button
               type="button"
-              onClick={() => setStatusFilter('all')}
+              onClick={() => setRoleFilter('all')}
               className={`px-3 py-1 rounded-lg font-medium transition-colors ${
-                statusFilter === 'all'
+                roleFilter === 'all'
                   ? 'bg-purple-600 text-white'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Todos ({regularUsers.length})
+              Todos ({users.length})
             </button>
             <button
               type="button"
-              onClick={() => setStatusFilter('active')}
+              onClick={() => setRoleFilter('user')}
               className={`px-3 py-1 rounded-lg font-medium transition-colors ${
-                statusFilter === 'active'
-                  ? 'bg-emerald-600 text-white'
+                roleFilter === 'user'
+                  ? 'bg-blue-600 text-white'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Ativos ({regularUsers.filter((u) => u.status === 'active').length})
+              Parceiros ({partnersCount})
             </button>
             <button
               type="button"
-              onClick={() => setStatusFilter('blocked')}
+              onClick={() => setRoleFilter('admin')}
               className={`px-3 py-1 rounded-lg font-medium transition-colors ${
-                statusFilter === 'blocked'
-                  ? 'bg-red-600 text-white'
+                roleFilter === 'admin'
+                  ? 'bg-purple-700 text-white'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Bloqueados ({regularUsers.filter((u) => u.status === 'blocked').length})
+              Admins ({adminsCount})
             </button>
           </div>
         </div>
@@ -133,7 +143,8 @@ export function AdminUsersTable({ users, onUserStatusChanged }: AdminUsersTableP
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider font-semibold">
-              <th className="py-3 px-4">Parceiro</th>
+              <th className="py-3 px-4">Usuário</th>
+              <th className="py-3 px-4">Tipo / Papel</th>
               <th className="py-3 px-4">URL Exclusiva</th>
               <th className="py-3 px-4">Cadastro / WhatsApp</th>
               <th className="py-3 px-4">Status</th>
@@ -142,6 +153,7 @@ export function AdminUsersTable({ users, onUserStatusChanged }: AdminUsersTableP
           </thead>
           <tbody className="divide-y divide-slate-800/60">
             {filtered.map((user) => {
+              const isAdmin = user.role === 'admin';
               const isBlocked = user.status === 'blocked';
               const publicUrl = `/p/${user.slug}`;
 
@@ -170,6 +182,19 @@ export function AdminUsersTable({ users, onUserStatusChanged }: AdminUsersTableP
                         <span className="text-xs text-slate-400 block">{user.email}</span>
                       </div>
                     </div>
+                  </td>
+
+                  {/* Role */}
+                  <td className="py-4 px-4">
+                    {isAdmin ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-semibold">
+                        <Shield className="w-3 h-3 text-purple-400" /> Super Admin
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs font-semibold">
+                        <User className="w-3 h-3 text-blue-400" /> Parceiro
+                      </span>
+                    )}
                   </td>
 
                   {/* Slug / Public URL */}
@@ -233,6 +258,16 @@ export function AdminUsersTable({ users, onUserStatusChanged }: AdminUsersTableP
                   {/* Actions */}
                   <td className="py-4 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      {/* Password Change Action */}
+                      <button
+                        type="button"
+                        onClick={() => setPasswordModalUser(user)}
+                        className="p-2 rounded-lg bg-purple-950/70 hover:bg-purple-900 border border-purple-800 text-purple-300 hover:text-white transition-colors"
+                        title={`Alterar senha de ${user.name}`}
+                      >
+                        <KeyRound className="w-4 h-4" />
+                      </button>
+
                       <Link
                         href={publicUrl}
                         target="_blank"
@@ -242,27 +277,35 @@ export function AdminUsersTable({ users, onUserStatusChanged }: AdminUsersTableP
                         <ExternalLink className="w-4 h-4" />
                       </Link>
 
-                      <Link
-                        href="/painel"
-                        onClick={() => handleLoginAs(user.id)}
-                        className="p-2 rounded-lg bg-blue-950/70 hover:bg-blue-900 border border-blue-800 text-blue-300 hover:text-white transition-colors"
-                        title="Acessar painel como este usuário"
-                      >
-                        <LogIn className="w-4 h-4" />
-                      </Link>
+                      {!isAdmin && (
+                        <Link
+                          href="/painel"
+                          onClick={() => handleLoginAs(user.id)}
+                          className="p-2 rounded-lg bg-blue-950/70 hover:bg-blue-900 border border-blue-800 text-blue-300 hover:text-white transition-colors"
+                          title="Acessar painel como este usuário"
+                        >
+                          <LogIn className="w-4 h-4" />
+                        </Link>
+                      )}
 
-                      <button
-                        type="button"
-                        disabled={updatingId === user.id}
-                        onClick={() => handleToggleStatus(user)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                          isBlocked
-                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                            : 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20'
-                        }`}
-                      >
-                        {isBlocked ? 'Desbloquear' : 'Bloquear'}
-                      </button>
+                      {!isAdmin ? (
+                        <button
+                          type="button"
+                          disabled={updatingId === user.id}
+                          onClick={() => handleToggleStatus(user)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                            isBlocked
+                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                              : 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20'
+                          }`}
+                        >
+                          {isBlocked ? 'Desbloquear' : 'Bloquear'}
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-purple-400/80 px-2 py-1 font-mono">
+                          Master
+                        </span>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -271,14 +314,23 @@ export function AdminUsersTable({ users, onUserStatusChanged }: AdminUsersTableP
 
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
-                  Nenhum parceiro encontrado com os filtros selecionados.
+                <td colSpan={6} className="py-8 text-center text-slate-400 text-xs">
+                  Nenhum usuário encontrado com os filtros selecionados.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {/* Password Change Modal */}
+      <ChangePasswordModal
+        user={passwordModalUser}
+        currentAdminId={currentAdminId}
+        isOpen={Boolean(passwordModalUser)}
+        onClose={() => setPasswordModalUser(null)}
+        onPasswordChanged={onUserStatusChanged}
+      />
     </div>
   );
 }

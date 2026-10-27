@@ -23,11 +23,13 @@ import { AdminLeaderboard } from '@/components/admin/AdminLeaderboard';
 import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
 import { AdminAuditTable } from '@/components/admin/AdminAuditTable';
 import { VersionHistoryModal } from '@/components/admin/VersionHistoryModal';
-import { Palette, ExternalLink, Loader2, RefreshCw, History, Trophy } from 'lucide-react';
+import { ChangePasswordModal } from '@/components/admin/ChangePasswordModal';
+import { Palette, ExternalLink, Loader2, RefreshCw, History, KeyRound } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserWithSettings | null>(null);
   const [metrics, setMetrics] = useState<AdminDashboardMetrics | null>(null);
   const [users, setUsers] = useState<UserWithSettings[]>([]);
   const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>([]);
@@ -35,21 +37,24 @@ export default function AdminDashboardPage() {
   const [publishedVersionNumber, setPublishedVersionNumber] = useState(1);
   const [loading, setLoading] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [selfPasswordModalOpen, setSelfPasswordModalOpen] = useState(false);
 
   const loadData = async () => {
     try {
-      const [m, u, a, p, v] = await Promise.all([
+      const [m, u, a, p, v, curr] = await Promise.all([
         getAdminDashboardMetrics(),
         getAllUsers(),
         getAuditLogs(),
         getPublishedLandingPage(),
         getLandingPageVersions(),
+        getCurrentSessionUser(),
       ]);
       setMetrics(m);
       setUsers(u);
       setAuditLogs(a);
       setPublishedVersionNumber(p.versionNumber);
       setVersions(v);
+      setCurrentUser(curr);
     } catch (err) {
       console.error('Failed to load admin dashboard data:', err);
     } finally {
@@ -64,6 +69,7 @@ export default function AdminDashboardPage() {
         router.replace('/admin/login');
         return;
       }
+      setCurrentUser(user);
       setAuthorized(true);
       await loadData();
     }
@@ -96,6 +102,17 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Quick Change Admin Password Button */}
+            <button
+              type="button"
+              onClick={() => setSelfPasswordModalOpen(true)}
+              className="px-3.5 py-2 bg-purple-950/70 hover:bg-purple-900 text-purple-300 hover:text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-purple-800/80 transition-colors shadow-sm"
+              title="Alterar minha senha de Super Administrador"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-purple-400" />
+              <span className="hidden sm:inline">Minha Senha</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setHistoryOpen(true)}
@@ -173,7 +190,11 @@ export default function AdminDashboardPage() {
           <AdminLeaderboard topUsers={metrics.topUsers} />
 
           {/* Users Table */}
-          <AdminUsersTable users={users} onUserStatusChanged={loadData} />
+          <AdminUsersTable
+            users={users}
+            currentAdminId={currentUser?.id}
+            onUserStatusChanged={loadData}
+          />
 
           {/* Audit Logs */}
           <AdminAuditTable logs={auditLogs} />
@@ -190,6 +211,15 @@ export default function AdminDashboardPage() {
         onRestored={() => {
           loadData();
         }}
+      />
+
+      {/* Super Admin Self Password Change Modal */}
+      <ChangePasswordModal
+        user={currentUser}
+        currentAdminId={currentUser?.id}
+        isOpen={selfPasswordModalOpen}
+        onClose={() => setSelfPasswordModalOpen(false)}
+        onPasswordChanged={loadData}
       />
     </div>
   );

@@ -40,8 +40,8 @@ export default function AdminLoginPage() {
   };
 
   const fillAdminCredentials = () => {
-    setEmail('admin@saas.com');
-    setPassword('admin123');
+    setEmail('rangelandradesmmn@gmail.com');
+    setPassword('senha123456');
   };
 
   return (
@@ -88,7 +88,7 @@ export default function AdminLoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@saas.com"
+              placeholder="rangelandradesmmn@gmail.com"
               required
               className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500 transition-colors"
             />
@@ -141,7 +141,7 @@ export default function AdminLoginPage() {
         {/* Quick Demo Admin Credentials */}
         <div className="mt-8 pt-6 border-t border-slate-800">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-center mb-2.5">
-            Credenciais Padrão do Administrador:
+            Credenciais Master:
           </p>
           <div className="flex justify-center">
             <button
@@ -149,7 +149,7 @@ export default function AdminLoginPage() {
               onClick={fillAdminCredentials}
               className="px-3.5 py-1.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 border border-purple-800/80 text-xs font-medium transition-colors"
             >
-              Preencher: admin@saas.com (senha: admin123)
+              Preencher: rangelandradesmmn@gmail.com
             </button>
           </div>
         </div>

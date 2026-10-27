@@ -8,9 +8,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'NextScale Pro — Plataforma de Landing Pages Personalizadas',
+  title: 'Infinity Copy - Token BXS — Plataforma Oficial',
   description:
-    'SaaS de criação, distribuição e sincronização de landing pages clonadas com personalização exclusiva para parceiros.',
+    'SaaS de criação, distribuição e sincronização de landing pages clonadas com personalização exclusiva para parceiros do Infinity Copy - Token BXS.',
 };
 
 export default function RootLayout({

@@ -2,7 +2,7 @@ import { LandingPageContent } from '@/types';
 
 export const initialLandingPageContent: LandingPageContent = {
   brand: {
-    name: 'NextScale Ecosystem',
+    name: 'Infinity Copy - Token BXS',
     logoUrl: '',
     primaryColor: '#2563eb', // Modern Blue
     accentColor: '#10b981', // Emerald Green
@@ -205,7 +205,7 @@ export const initialLandingPageContent: LandingPageContent = {
     urgencyBadge: '⚡ Acesso Imediato Liberado',
   },
   footer: {
-    companyName: 'NextScale Ecosystem do Brasil Ltda.',
+    companyName: 'Infinity Copy - Token BXS',
     cnpj: '',
     legalText:
       'Todos os direitos reservados. Este site respeita rigorosamente a privacidade dos visitantes nos termos da Lei Geral de Proteção de Dados (LGPD - Lei 13.709/2018). As informações e depoimentos apresentados refletem experiências individuais e não garantem resultados idênticos.',

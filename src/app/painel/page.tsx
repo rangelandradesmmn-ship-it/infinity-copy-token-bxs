@@ -108,9 +108,9 @@ export default function UserPanelPage() {
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-2 text-white font-bold text-lg">
               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-sm font-extrabold">
-                N
+                I
               </div>
-              <span className="hidden sm:inline">NextScale</span>
+              <span className="hidden sm:inline">Infinity Copy - Token BXS</span>
             </Link>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
               Painel do Parceiro

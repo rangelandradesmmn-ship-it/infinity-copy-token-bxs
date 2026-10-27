@@ -1108,7 +1108,7 @@ export function MasterEditor({
                     footer: { ...prev.footer, companyName: e.target.value },
                   }))
                 }
-                placeholder="Ex: Minha Empresa Digital, NextScale Ecosystem, Vital Cosméticos..."
+                placeholder="Ex: Infinity Copy - Token BXS, Minha Empresa Digital..."
                 className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-purple-500 transition-colors"
               />
               <p className="text-[11px] text-slate-400">

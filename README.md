@@ -1,4 +1,4 @@
-# NextScale Pro — SaaS de Landing Pages Clonadas & Personalizadas
+# Infinity Copy - Token BXS — SaaS de Landing Pages Clonadas & Personalizadas
 
 Aplicativo web SaaS moderno, responsivo e seguro para criação, distribuição e sincronização de landing pages clonadas com template centralizado e personalização restrita por parceiro.
 

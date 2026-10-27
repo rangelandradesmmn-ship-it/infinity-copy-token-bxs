@@ -8,9 +8,54 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Infinity Copy - Token BXS — Plataforma Oficial',
+  metadataBase: new URL('https://infinity-copy-token-bxs.vercel.app'),
+  title: {
+    default: 'Infinity Copy - Token BXS — Automação de Operações de Cripto',
+    template: '%s | Infinity Copy - Token BXS',
+  },
   description:
-    'SaaS de criação, distribuição e sincronização de landing pages clonadas com personalização exclusiva para parceiros do Infinity Copy - Token BXS.',
+    'Descubra a melhor tecnologia de automação em operações de futuros de cripto e token BXS. Acesse sua página exclusiva e conheça nosso ecossistema oficial.',
+  keywords: [
+    'Infinity Copy',
+    'Token BXS',
+    'BXSignals',
+    'Cripto',
+    'Automação de Futuros',
+    'Copy Trading',
+    'Binance Smart Chain',
+  ],
+  icons: {
+    icon: [
+      { url: '/icon.png', type: 'image/png' },
+      { url: '/logo.png', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-icon.png' }],
+    shortcut: ['/icon.png'],
+  },
+  openGraph: {
+    title: 'Infinity Copy - Token BXS — Automação de Operações de Cripto',
+    description:
+      'Descubra a melhor tecnologia de automação em operações de futuros de cripto e token BXS. Acesse sua página exclusiva e conheça nosso ecossistema oficial.',
+    url: 'https://infinity-copy-token-bxs.vercel.app',
+    siteName: 'Infinity Copy - Token BXS',
+    locale: 'pt_BR',
+    type: 'website',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 800,
+        height: 600,
+        alt: 'Infinity Copy - Token BXS',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Infinity Copy - Token BXS — Automação de Operações de Cripto',
+    description:
+      'Descubra a melhor tecnologia de automação em operações de futuros de cripto e token BXS. Acesse sua página exclusiva e conheça nosso ecossistema oficial.',
+    images: ['/og-image.png'],
+  },
 };
 
 export default function RootLayout({

@@ -176,6 +176,25 @@ export const initialLandingPageContent: LandingPageContent = {
       },
     ],
   },
+  tokenSection: {
+    enabled: true,
+    badge: '🟢 Gráfico em Tempo Real',
+    title: 'Acompanhe a Cotação do Token BXS',
+    subtitle:
+      'Monitoramento ao vivo de preço, liquidez e negociações descentralizadas na rede Binance Smart Chain (BSC).',
+    tokenSymbol: 'BXS',
+    tokenName: 'BXSignals Token',
+    network: 'BNB Smart Chain (BEP-20)',
+    contractAddress: '0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+    copyButtonText: 'copie o contrato da BXS',
+    chartProvider: 'geckoterminal',
+    embedUrl:
+      'https://www.geckoterminal.com/bsc/pools/0xd4ad1ce50f942f2f036f1f759ff3eb785d77a7a2e71db52849a37ad28e4295ab?embed=1&info=0&swaps=0&grayscale=0&light_chart=0',
+    coinMarketCapUrl:
+      'https://dex.coinmarketcap.com/token/bsc/0xadcea94f46ce8a87b890d7da9a444b4a21811a76/',
+    bscScanUrl:
+      'https://bscscan.com/token/0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+  },
   ctaBanner: {
     enabled: true,
     title: 'Não Deixe Para Depois: Comece Sua Mudança Hoje',

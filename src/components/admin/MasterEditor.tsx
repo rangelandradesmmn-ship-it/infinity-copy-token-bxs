@@ -36,6 +36,8 @@ import {
   Upload,
   Type,
   SlidersHorizontal,
+  TrendingUp,
+  Copy,
 } from 'lucide-react';
 import { FONT_FAMILY_MAP } from '@/components/landing/LandingRenderer';
 
@@ -65,7 +67,7 @@ export function MasterEditor({
 }: MasterEditorProps) {
   const [content, setContent] = useState<LandingPageContent>(initialContent);
   const [activeTab, setActiveTab] = useState<
-    'brand' | 'hero' | 'videos' | 'benefits' | 'consultant' | 'testimonials' | 'faq' | 'cta' | 'defaults'
+    'brand' | 'hero' | 'videos' | 'benefits' | 'consultant' | 'testimonials' | 'faq' | 'token' | 'cta' | 'defaults'
   >('brand');
 
   const [savingDraft, setSavingDraft] = useState(false);
@@ -363,6 +365,7 @@ export function MasterEditor({
           { id: 'consultant', label: 'Seção do Consultor', icon: Shield },
           { id: 'testimonials', label: 'Depoimentos', icon: MessageSquare },
           { id: 'faq', label: 'Perguntas Frequentes', icon: HelpCircle },
+          { id: 'token', label: 'Token BXS & Gráfico', icon: TrendingUp },
           { id: 'cta', label: 'Banner Final & Rodapé', icon: Tv },
           { id: 'defaults', label: 'Padrões da Matriz', icon: Shield },
         ].map((tab) => {
@@ -1591,6 +1594,337 @@ export function MasterEditor({
                 />
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: TOKEN BXS & GRÁFICO EM TEMPO REAL */}
+      {activeTab === 'token' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div>
+              <h2 className="text-base font-bold text-white">Gráfico em Tempo Real & Token BXS</h2>
+              <p className="text-xs text-slate-400">
+                Configure o gráfico ao vivo do token e o botão de cópia do contrato para os visitantes.
+              </p>
+            </div>
+            <label className="flex items-center gap-2 text-xs text-slate-300 font-semibold cursor-pointer">
+              <input
+                type="checkbox"
+                checked={content.tokenSection?.enabled ?? true}
+                onChange={(e) =>
+                  setContent((prev) => ({
+                    ...prev,
+                    tokenSection: {
+                      ...(prev.tokenSection || {
+                        enabled: true,
+                        badge: '🟢 Gráfico em Tempo Real',
+                        title: 'Acompanhe a Cotação do Token BXS',
+                        subtitle:
+                          'Monitoramento ao vivo de preço, liquidez e negociações descentralizadas na rede Binance Smart Chain (BSC).',
+                        tokenSymbol: 'BXS',
+                        tokenName: 'BXSignals Token',
+                        network: 'BNB Smart Chain (BEP-20)',
+                        contractAddress: '0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                        copyButtonText: 'copie o contrato da BXS',
+                        chartProvider: 'geckoterminal',
+                        embedUrl:
+                          'https://www.geckoterminal.com/bsc/pools/0xd4ad1ce50f942f2f036f1f759ff3eb785d77a7a2e71db52849a37ad28e4295ab?embed=1&info=0&swaps=0&grayscale=0&light_chart=0',
+                        coinMarketCapUrl:
+                          'https://dex.coinmarketcap.com/token/bsc/0xadcea94f46ce8a87b890d7da9a444b4a21811a76/',
+                        bscScanUrl:
+                          'https://bscscan.com/token/0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                      }),
+                      enabled: e.target.checked,
+                    },
+                  }))
+                }
+                className="w-4 h-4 rounded text-purple-600"
+              />
+              <span>Ativar Seção do Gráfico</span>
+            </label>
+          </div>
+
+          {/* Form Fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Badge Superior da Seção
+              </label>
+              <input
+                type="text"
+                value={content.tokenSection?.badge || '🟢 Gráfico em Tempo Real'}
+                onChange={(e) =>
+                  setContent((prev) => ({
+                    ...prev,
+                    tokenSection: {
+                      ...(prev.tokenSection || {
+                        enabled: true,
+                        badge: '🟢 Gráfico em Tempo Real',
+                        title: 'Acompanhe a Cotação do Token BXS',
+                        subtitle:
+                          'Monitoramento ao vivo de preço, liquidez e negociações descentralizadas na rede Binance Smart Chain (BSC).',
+                        tokenSymbol: 'BXS',
+                        tokenName: 'BXSignals Token',
+                        network: 'BNB Smart Chain (BEP-20)',
+                        contractAddress: '0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                        copyButtonText: 'copie o contrato da BXS',
+                        chartProvider: 'geckoterminal',
+                        embedUrl:
+                          'https://www.geckoterminal.com/bsc/pools/0xd4ad1ce50f942f2f036f1f759ff3eb785d77a7a2e71db52849a37ad28e4295ab?embed=1&info=0&swaps=0&grayscale=0&light_chart=0',
+                        coinMarketCapUrl:
+                          'https://dex.coinmarketcap.com/token/bsc/0xadcea94f46ce8a87b890d7da9a444b4a21811a76/',
+                        bscScanUrl:
+                          'https://bscscan.com/token/0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                      }),
+                      badge: e.target.value,
+                    },
+                  }))
+                }
+                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Texto do Botão de Cópia do Contrato
+              </label>
+              <input
+                type="text"
+                value={content.tokenSection?.copyButtonText || 'copie o contrato da BXS'}
+                onChange={(e) =>
+                  setContent((prev) => ({
+                    ...prev,
+                    tokenSection: {
+                      ...(prev.tokenSection || {
+                        enabled: true,
+                        badge: '🟢 Gráfico em Tempo Real',
+                        title: 'Acompanhe a Cotação do Token BXS',
+                        subtitle:
+                          'Monitoramento ao vivo de preço, liquidez e negociações descentralizadas na rede Binance Smart Chain (BSC).',
+                        tokenSymbol: 'BXS',
+                        tokenName: 'BXSignals Token',
+                        network: 'BNB Smart Chain (BEP-20)',
+                        contractAddress: '0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                        copyButtonText: 'copie o contrato da BXS',
+                        chartProvider: 'geckoterminal',
+                        embedUrl:
+                          'https://www.geckoterminal.com/bsc/pools/0xd4ad1ce50f942f2f036f1f759ff3eb785d77a7a2e71db52849a37ad28e4295ab?embed=1&info=0&swaps=0&grayscale=0&light_chart=0',
+                        coinMarketCapUrl:
+                          'https://dex.coinmarketcap.com/token/bsc/0xadcea94f46ce8a87b890d7da9a444b4a21811a76/',
+                        bscScanUrl:
+                          'https://bscscan.com/token/0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                      }),
+                      copyButtonText: e.target.value,
+                    },
+                  }))
+                }
+                placeholder="Ex: copie o contrato da BXS"
+                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Título Principal da Seção
+              </label>
+              <input
+                type="text"
+                value={content.tokenSection?.title || 'Acompanhe a Cotação do Token BXS'}
+                onChange={(e) =>
+                  setContent((prev) => ({
+                    ...prev,
+                    tokenSection: {
+                      ...(prev.tokenSection || {
+                        enabled: true,
+                        badge: '🟢 Gráfico em Tempo Real',
+                        title: 'Acompanhe a Cotação do Token BXS',
+                        subtitle:
+                          'Monitoramento ao vivo de preço, liquidez e negociações descentralizadas na rede Binance Smart Chain (BSC).',
+                        tokenSymbol: 'BXS',
+                        tokenName: 'BXSignals Token',
+                        network: 'BNB Smart Chain (BEP-20)',
+                        contractAddress: '0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                        copyButtonText: 'copie o contrato da BXS',
+                        chartProvider: 'geckoterminal',
+                        embedUrl:
+                          'https://www.geckoterminal.com/bsc/pools/0xd4ad1ce50f942f2f036f1f759ff3eb785d77a7a2e71db52849a37ad28e4295ab?embed=1&info=0&swaps=0&grayscale=0&light_chart=0',
+                        coinMarketCapUrl:
+                          'https://dex.coinmarketcap.com/token/bsc/0xadcea94f46ce8a87b890d7da9a444b4a21811a76/',
+                        bscScanUrl:
+                          'https://bscscan.com/token/0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                      }),
+                      title: e.target.value,
+                    },
+                  }))
+                }
+                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Subtítulo Explicativo
+              </label>
+              <textarea
+                rows={2}
+                value={
+                  content.tokenSection?.subtitle ||
+                  'Monitoramento ao vivo de preço, liquidez e negociações descentralizadas na rede Binance Smart Chain (BSC).'
+                }
+                onChange={(e) =>
+                  setContent((prev) => ({
+                    ...prev,
+                    tokenSection: {
+                      ...(prev.tokenSection || {
+                        enabled: true,
+                        badge: '🟢 Gráfico em Tempo Real',
+                        title: 'Acompanhe a Cotação do Token BXS',
+                        subtitle:
+                          'Monitoramento ao vivo de preço, liquidez e negociações descentralizadas na rede Binance Smart Chain (BSC).',
+                        tokenSymbol: 'BXS',
+                        tokenName: 'BXSignals Token',
+                        network: 'BNB Smart Chain (BEP-20)',
+                        contractAddress: '0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                        copyButtonText: 'copie o contrato da BXS',
+                        chartProvider: 'geckoterminal',
+                        embedUrl:
+                          'https://www.geckoterminal.com/bsc/pools/0xd4ad1ce50f942f2f036f1f759ff3eb785d77a7a2e71db52849a37ad28e4295ab?embed=1&info=0&swaps=0&grayscale=0&light_chart=0',
+                        coinMarketCapUrl:
+                          'https://dex.coinmarketcap.com/token/bsc/0xadcea94f46ce8a87b890d7da9a444b4a21811a76/',
+                        bscScanUrl:
+                          'https://bscscan.com/token/0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                      }),
+                      subtitle: e.target.value,
+                    },
+                  }))
+                }
+                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Endereço do Contrato do Token (Código que será copiado)
+              </label>
+              <input
+                type="text"
+                value={content.tokenSection?.contractAddress || '0xadcea94f46ce8a87b890d7da9a444b4a21811a76'}
+                onChange={(e) =>
+                  setContent((prev) => ({
+                    ...prev,
+                    tokenSection: {
+                      ...(prev.tokenSection || {
+                        enabled: true,
+                        badge: '🟢 Gráfico em Tempo Real',
+                        title: 'Acompanhe a Cotação do Token BXS',
+                        subtitle:
+                          'Monitoramento ao vivo de preço, liquidez e negociações descentralizadas na rede Binance Smart Chain (BSC).',
+                        tokenSymbol: 'BXS',
+                        tokenName: 'BXSignals Token',
+                        network: 'BNB Smart Chain (BEP-20)',
+                        contractAddress: '0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                        copyButtonText: 'copie o contrato da BXS',
+                        chartProvider: 'geckoterminal',
+                        embedUrl:
+                          'https://www.geckoterminal.com/bsc/pools/0xd4ad1ce50f942f2f036f1f759ff3eb785d77a7a2e71db52849a37ad28e4295ab?embed=1&info=0&swaps=0&grayscale=0&light_chart=0',
+                        coinMarketCapUrl:
+                          'https://dex.coinmarketcap.com/token/bsc/0xadcea94f46ce8a87b890d7da9a444b4a21811a76/',
+                        bscScanUrl:
+                          'https://bscscan.com/token/0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                      }),
+                      contractAddress: e.target.value,
+                    },
+                  }))
+                }
+                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-emerald-400 font-mono text-xs"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                Ao clicar no botão "copie o contrato da BXS", este endereço exato será copiado para o dispositivo do visitante.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Link do CoinMarketCap DEX
+              </label>
+              <input
+                type="url"
+                value={
+                  content.tokenSection?.coinMarketCapUrl ||
+                  'https://dex.coinmarketcap.com/token/bsc/0xadcea94f46ce8a87b890d7da9a444b4a21811a76/'
+                }
+                onChange={(e) =>
+                  setContent((prev) => ({
+                    ...prev,
+                    tokenSection: {
+                      ...(prev.tokenSection || {
+                        enabled: true,
+                        badge: '🟢 Gráfico em Tempo Real',
+                        title: 'Acompanhe a Cotação do Token BXS',
+                        subtitle:
+                          'Monitoramento ao vivo de preço, liquidez e negociações descentralizadas na rede Binance Smart Chain (BSC).',
+                        tokenSymbol: 'BXS',
+                        tokenName: 'BXSignals Token',
+                        network: 'BNB Smart Chain (BEP-20)',
+                        contractAddress: '0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                        copyButtonText: 'copie o contrato da BXS',
+                        chartProvider: 'geckoterminal',
+                        embedUrl:
+                          'https://www.geckoterminal.com/bsc/pools/0xd4ad1ce50f942f2f036f1f759ff3eb785d77a7a2e71db52849a37ad28e4295ab?embed=1&info=0&swaps=0&grayscale=0&light_chart=0',
+                        coinMarketCapUrl:
+                          'https://dex.coinmarketcap.com/token/bsc/0xadcea94f46ce8a87b890d7da9a444b4a21811a76/',
+                        bscScanUrl:
+                          'https://bscscan.com/token/0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                      }),
+                      coinMarketCapUrl: e.target.value,
+                    },
+                  }))
+                }
+                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Link do BSCScan (Explorador)
+              </label>
+              <input
+                type="url"
+                value={
+                  content.tokenSection?.bscScanUrl ||
+                  'https://bscscan.com/token/0xadcea94f46ce8a87b890d7da9a444b4a21811a76'
+                }
+                onChange={(e) =>
+                  setContent((prev) => ({
+                    ...prev,
+                    tokenSection: {
+                      ...(prev.tokenSection || {
+                        enabled: true,
+                        badge: '🟢 Gráfico em Tempo Real',
+                        title: 'Acompanhe a Cotação do Token BXS',
+                        subtitle:
+                          'Monitoramento ao vivo de preço, liquidez e negociações descentralizadas na rede Binance Smart Chain (BSC).',
+                        tokenSymbol: 'BXS',
+                        tokenName: 'BXSignals Token',
+                        network: 'BNB Smart Chain (BEP-20)',
+                        contractAddress: '0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                        copyButtonText: 'copie o contrato da BXS',
+                        chartProvider: 'geckoterminal',
+                        embedUrl:
+                          'https://www.geckoterminal.com/bsc/pools/0xd4ad1ce50f942f2f036f1f759ff3eb785d77a7a2e71db52849a37ad28e4295ab?embed=1&info=0&swaps=0&grayscale=0&light_chart=0',
+                        coinMarketCapUrl:
+                          'https://dex.coinmarketcap.com/token/bsc/0xadcea94f46ce8a87b890d7da9a444b4a21811a76/',
+                        bscScanUrl:
+                          'https://bscscan.com/token/0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+                      }),
+                      bscScanUrl: e.target.value,
+                    },
+                  }))
+                }
+                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs font-mono"
+              />
+            </div>
           </div>
         </div>
       )}

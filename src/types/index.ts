@@ -117,6 +117,21 @@ export interface LandingPageContent {
     subtitle: string;
     items: FaqItem[];
   };
+  tokenSection?: {
+    enabled: boolean;
+    badge?: string;
+    title: string;
+    subtitle: string;
+    tokenSymbol: string;
+    tokenName: string;
+    network: string;
+    contractAddress: string;
+    copyButtonText: string;
+    chartProvider?: 'geckoterminal' | 'dexscreener' | 'custom';
+    embedUrl: string;
+    coinMarketCapUrl: string;
+    bscScanUrl?: string;
+  };
   ctaBanner: {
     enabled: boolean;
     title: string;

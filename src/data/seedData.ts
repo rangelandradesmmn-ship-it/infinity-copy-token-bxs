@@ -12,7 +12,19 @@ export const seedAdminUser: UserProfile = {
   updated_at: '2026-01-01T10:00:00Z',
 };
 
+export const seedRangelUser: UserProfile = {
+  id: 'user-rangel-0001',
+  name: 'Rangel Andrade',
+  email: 'rangelandradesmmn@gmail.com',
+  role: 'admin',
+  status: 'active',
+  slug: 'cadastro',
+  created_at: '2026-02-01T10:00:00Z',
+  updated_at: '2026-02-01T10:00:00Z',
+};
+
 export const seedUsers: UserProfile[] = [
+  seedRangelUser,
   seedAdminUser,
   {
     id: 'user-uuid-0001',
@@ -47,6 +59,16 @@ export const seedUsers: UserProfile[] = [
 ];
 
 export const seedUserSettings: Record<string, UserLandingSettings> = {
+  'user-rangel-0001': {
+    id: 'set-rangel-0001',
+    user_id: 'user-rangel-0001',
+    profile_image_url: '/logo.png',
+    registration_url: 'https://meet.google.com/meet/qng-voma-xqm',
+    whatsapp_country_code: '+55',
+    whatsapp_number: '22997953907',
+    whatsapp_message: 'Olá Rangel! Acessei sua página exclusiva e quero tirar dúvidas sobre a Infinity Copy.',
+    updated_at: '2026-02-01T10:00:00Z',
+  },
   'user-uuid-0001': {
     id: 'set-uuid-0001',
     user_id: 'user-uuid-0001',

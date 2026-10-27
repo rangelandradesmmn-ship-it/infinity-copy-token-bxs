@@ -8,7 +8,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://infinity-copy-token-bxs.vercel.app'),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || 'https://infinitycopy-gra.vercel.app'
+  ),
   title: {
     default: 'Infinity Copy - Token BXS — Automação de Operações de Cripto',
     template: '%s | Infinity Copy - Token BXS',
@@ -36,7 +38,7 @@ export const metadata: Metadata = {
     title: 'Infinity Copy - Token BXS — Automação de Operações de Cripto',
     description:
       'Descubra a melhor tecnologia de automação em operações de futuros de cripto e token BXS. Acesse sua página exclusiva e conheça nosso ecossistema oficial.',
-    url: 'https://infinity-copy-token-bxs.vercel.app',
+    url: 'https://infinitycopy-gra.vercel.app',
     siteName: 'Infinity Copy - Token BXS',
     locale: 'pt_BR',
     type: 'website',

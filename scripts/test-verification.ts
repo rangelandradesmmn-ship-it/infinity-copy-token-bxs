@@ -285,6 +285,36 @@ assert(
   const nonExistent = await authenticateUser('desconhecido@teste.com', 'qualquer123');
   assert(nonExistent.success === false, '44. E-mail não cadastrado é rejeitado com aviso amigável');
 
+  // ------------------------------------------------------------------
+  // TESTE 13: Usuário Master Rangel Andrade & Resolução do Slug /p/cadastro
+  // ------------------------------------------------------------------
+  console.log('\n--- Módulo 13: Usuário Master Rangel Andrade & Resolução /p/cadastro ---');
+
+  const rangelAuthDefault = await authenticateUser('rangelandradesmmn@gmail.com', 'senha123456');
+  assert(
+    rangelAuthDefault.success === true && rangelAuthDefault.user?.email === 'rangelandradesmmn@gmail.com',
+    '45. Rangel Andrade autentica com sucesso com senha padrão senha123456'
+  );
+
+  const rangelAuthAdmin = await authenticateUser('rangelandradesmmn@gmail.com', 'admin123');
+  assert(
+    rangelAuthAdmin.success === true && rangelAuthAdmin.user?.role === 'admin',
+    '46. Rangel Andrade autentica como admin com admin123'
+  );
+
+  const rangelUser = seedUsers.find((u) => u.email === 'rangelandradesmmn@gmail.com');
+  assert(
+    rangelUser !== undefined && rangelUser.slug === 'cadastro',
+    '47. Rangel Andrade está registrado nativamente no seedData com slug cadastro'
+  );
+
+  const rangelSettings = seedUserSettings['user-rangel-0001'];
+  assert(
+    rangelSettings?.whatsapp_number === '22997953907' &&
+    rangelSettings?.registration_url === 'https://meet.google.com/meet/qng-voma-xqm',
+    '48. Configurações de WhatsApp (22997953907) e Link de Cadastro do Rangel preservadas'
+  );
+
   console.log('\n================================================================');
   console.log(` RESULTADO: ${passedTests} DE ${totalTests} TESTES APROVADOS COM SUCESSO! `);
   console.log('================================================================\n');

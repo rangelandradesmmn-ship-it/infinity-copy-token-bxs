@@ -113,6 +113,12 @@ function ClonedPageContent() {
               <ArrowLeft className="w-4 h-4" />
               <span>Ir para a Página Principal</span>
             </Link>
+            <Link
+              href="/painel/cadastro"
+              className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold text-slate-200 text-sm transition-colors border border-slate-700"
+            >
+              <span>Cadastre-se Gratuitamente no Painel</span>
+            </Link>
           </div>
         </div>
       </div>

@@ -252,6 +252,10 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
 
   const jorgeInSeed = seedUsers.find((u) => u.name === 'Jorge Carvalho');
   assert(jorgeInSeed !== undefined && jorgeInSeed.slug === 'jorge-carvalho', '36. Jorge Carvalho está cadastrado nativamente no sistema');
+  assert(jorgeInSeed?.role === 'user', '36.1. Jorge Carvalho possui estritamente perfil de usuário comum (sem acesso admin)');
+
+  const jorgeAuth = await authenticateUser('jorgecarvalho@gmail.com', 'senha123456');
+  assert(jorgeAuth.success === true && jorgeAuth.user?.role === 'user', '36.2. Jorge Carvalho autentica estritamente com perfil user');
 
   // ------------------------------------------------------------------
   // TESTE 13: Autenticação Segura do Super Admin Rangel

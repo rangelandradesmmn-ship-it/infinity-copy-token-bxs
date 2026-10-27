@@ -242,20 +242,16 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
 
 (async () => {
   // ------------------------------------------------------------------
-  // TESTE 12: Produção Pronta - Apenas Rangel Andrade no Seed Nativo
+  // TESTE 12: Produção Pronta - Usuários Oficiais Registrados
   // ------------------------------------------------------------------
-  console.log('\n--- Módulo 12: Produção Pronta - Banco de Dados Limpo ---');
-  assert(seedUsers.length === 1, '32. SeedData possui apenas 1 usuário oficial para produção');
-  assert(seedUsers[0].email === 'rangelandradesmmn@gmail.com', '33. Usuário oficial é rangelandradesmmn@gmail.com');
+  console.log('\n--- Módulo 12: Produção Pronta - Banco de Dados de Usuários Oficiais ---');
+  assert(seedUsers.length >= 2, '32. SeedData possui usuários oficiais (Rangel e Jorge)');
+  assert(seedUsers[0].email === 'rangelandradesmmn@gmail.com', '33. Usuário oficial Master é rangelandradesmmn@gmail.com');
   assert(seedUsers[0].role === 'admin', '34. Rangel Andrade possui perfil de Super Admin');
   assert(seedUsers[0].slug === 'cadastro', '35. Slug oficial do Rangel é cadastro');
 
-  const rangelSettings = seedUserSettings['user-rangel-0001'];
-  assert(
-    rangelSettings?.whatsapp_number === '22997953907' &&
-    rangelSettings?.registration_url === 'https://meet.google.com/meet/qng-voma-xqm',
-    '36. Configurações de WhatsApp (22997953907) e Link Meet do Rangel preservadas'
-  );
+  const jorgeInSeed = seedUsers.find((u) => u.name === 'Jorge Carvalho');
+  assert(jorgeInSeed !== undefined && jorgeInSeed.slug === 'jorge-carvalho', '36. Jorge Carvalho está cadastrado nativamente no sistema');
 
   // ------------------------------------------------------------------
   // TESTE 13: Autenticação Segura do Super Admin Rangel

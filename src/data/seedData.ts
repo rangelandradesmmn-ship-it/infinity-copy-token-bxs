@@ -15,9 +15,21 @@ export const seedRangelUser: UserProfile = {
 // Aliased for backwards compatibility in existing references
 export const seedAdminUser: UserProfile = seedRangelUser;
 
-// Only the real Master user Rangel Andrade is registered by default
+export const seedJorgeUser: UserProfile = {
+  id: 'user-jorge-0001',
+  name: 'Jorge Carvalho',
+  email: 'jorgecarvalho@gmail.com',
+  role: 'user',
+  status: 'active',
+  slug: 'jorge-carvalho',
+  created_at: '2026-02-01T10:00:00Z',
+  updated_at: '2026-02-01T10:00:00Z',
+};
+
+// Registered production users
 export const seedUsers: UserProfile[] = [
   seedRangelUser,
+  seedJorgeUser,
 ];
 
 export const seedUserSettings: Record<string, UserLandingSettings> = {
@@ -29,6 +41,16 @@ export const seedUserSettings: Record<string, UserLandingSettings> = {
     whatsapp_country_code: '+55',
     whatsapp_number: '22997953907',
     whatsapp_message: 'Olá Rangel! Acessei sua página exclusiva e quero tirar dúvidas sobre a Infinity Copy.',
+    updated_at: '2026-02-01T10:00:00Z',
+  },
+  'user-jorge-0001': {
+    id: 'set-jorge-0001',
+    user_id: 'user-jorge-0001',
+    profile_image_url: '',
+    registration_url: 'https://meet.google.com/meet/qng-voma-xqm',
+    whatsapp_country_code: '+55',
+    whatsapp_number: '',
+    whatsapp_message: 'Olá Jorge! Acessei sua página exclusiva e quero saber mais sobre a Infinity Copy.',
     updated_at: '2026-02-01T10:00:00Z',
   },
 };

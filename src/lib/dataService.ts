@@ -14,6 +14,7 @@ import { initialLandingPageContent } from '@/data/defaultLandingPage';
 import {
   seedUsers,
   seedRangelUser,
+  seedJorgeUser,
   seedUserSettings,
   seedVersions,
   seedEvents,
@@ -37,6 +38,7 @@ const TEST_USER_EMAILS = new Set(['admin@saas.com', 'joao@parceiro.com', 'maria@
 
 export const defaultPasswords: Record<string, string> = {
   'user-rangel-0001': 'senha123456',
+  'user-jorge-0001': 'senha123456',
 };
 
 // --- In-Memory & LocalStorage Persistence for Mock/Local Mode ---
@@ -64,7 +66,7 @@ function setLocalItem<T>(key: string, value: T): void {
 export function initLocalDatabase() {
   if (typeof window === 'undefined') return;
 
-  // 1. Load users and ensure Rangel is always present
+  // 1. Load users and ensure Rangel and Jorge are always present
   let existingUsers = getLocalItem<UserProfile[]>(STORAGE_KEYS.USERS, []);
   if (!existingUsers || existingUsers.length === 0) {
     existingUsers = [...seedUsers];
@@ -76,9 +78,16 @@ export function initLocalDatabase() {
   if (!rangelExists) {
     existingUsers.unshift(seedRangelUser);
   }
+
+  const jorgeExists = existingUsers.some(
+    (u) => u.name.toLowerCase() === 'jorge carvalho' || u.email.toLowerCase() === 'jorgecarvalho@gmail.com'
+  );
+  if (!jorgeExists) {
+    existingUsers.push(seedJorgeUser);
+  }
   setLocalItem(STORAGE_KEYS.USERS, existingUsers);
 
-  // 2. Settings: ensure Rangel's settings are present while preserving existing users' settings
+  // 2. Settings: ensure Rangel and Jorge settings are present while preserving existing users' settings
   const existingSettings = getLocalItem<Record<string, UserLandingSettings>>(
     STORAGE_KEYS.SETTINGS,
     seedUserSettings
@@ -86,15 +95,21 @@ export function initLocalDatabase() {
   if (!existingSettings['user-rangel-0001']) {
     existingSettings['user-rangel-0001'] = seedUserSettings['user-rangel-0001'];
   }
+  if (!existingSettings['user-jorge-0001']) {
+    existingSettings['user-jorge-0001'] = seedUserSettings['user-jorge-0001'];
+  }
   setLocalItem(STORAGE_KEYS.SETTINGS, existingSettings);
 
-  // 3. Passwords: ensure Rangel's password is present while preserving existing users' passwords
+  // 3. Passwords: ensure Rangel and Jorge passwords are present while preserving existing users' passwords
   const existingPasswords = getLocalItem<Record<string, string>>(
     STORAGE_KEYS.PASSWORDS,
     defaultPasswords
   );
   if (!existingPasswords['user-rangel-0001']) {
     existingPasswords['user-rangel-0001'] = 'senha123456';
+  }
+  if (!existingPasswords['user-jorge-0001']) {
+    existingPasswords['user-jorge-0001'] = 'senha123456';
   }
   setLocalItem(STORAGE_KEYS.PASSWORDS, existingPasswords);
 
@@ -580,6 +595,9 @@ export async function getUserBySlug(slug: string): Promise<UserWithSettings | nu
   let profile = users.find((u) => u.slug.toLowerCase() === cleanSlug);
   if (!profile && (cleanSlug === 'cadastro' || cleanSlug === 'rangel' || cleanSlug === 'master' || cleanSlug === 'admin')) {
     profile = users.find((u) => u.email.toLowerCase() === 'rangelandradesmmn@gmail.com');
+  }
+  if (!profile && (cleanSlug === 'jorge' || cleanSlug === 'jorge-carvalho' || cleanSlug === 'jorgecarvalho')) {
+    profile = users.find((u) => u.name.toLowerCase() === 'jorge carvalho');
   }
   if (!profile) return null;
 

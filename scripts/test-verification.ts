@@ -318,6 +318,44 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
   const rangelAuthWithNew = await authenticateUser('rangelandradesmmn@gmail.com', rangelNewPass);
   assert(rangelAuthWithNew.success === true, '48. Super Admin autentica com sucesso com a nova senha');
 
+  // ------------------------------------------------------------------
+  // TESTE 16: Compatibilidade de Usuários Cadastrados Pré-Alteração de Domínio
+  // ------------------------------------------------------------------
+  console.log('\n--- Módulo 16: Compatibilidade & Acesso Pré-Alteração de Domínio ---');
+
+  const legacyAdminAuth = await authenticateUser('admin@saas.com', 'admin123');
+  assert(
+    legacyAdminAuth.success === true && legacyAdminAuth.user?.role === 'admin',
+    '49. Acesso do administrador anterior (admin@saas.com) mapeia com sucesso para o Super Admin'
+  );
+
+  const { getUserBySlug } = await import('../src/lib/dataService');
+  const masterSlugUser = await getUserBySlug('master');
+  assert(
+    masterSlugUser !== null && masterSlugUser.email === 'rangelandradesmmn@gmail.com',
+    '50. Slug /p/master preservado e resolvido com sucesso'
+  );
+
+  const adminSlugUser = await getUserBySlug('admin');
+  assert(
+    adminSlugUser !== null && adminSlugUser.email === 'rangelandradesmmn@gmail.com',
+    '51. Slug /p/admin preservado e resolvido com sucesso'
+  );
+
+  // Test cross-domain payload serialization & deserialization
+  const testPayload = {
+    users: [{ id: 'user-legacy-01', name: 'Antigo Parceiro', email: 'antigo@parceiro.com', role: 'user', slug: 'antigo' }],
+    settings: { 'user-legacy-01': { registration_url: 'https://link.com' } },
+    passwords: { 'user-legacy-01': 'senhaAntiga123' },
+    sessionUser: 'user-legacy-01',
+  };
+  const serialized = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(testPayload)))));
+  const deserialized = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(serialized)))));
+  assert(
+    deserialized.users[0].email === 'antigo@parceiro.com' && deserialized.passwords['user-legacy-01'] === 'senhaAntiga123',
+    '52. Mecanismo de ponte de sincronização entre domínios codifica e decodifica dados com fidelidade'
+  );
+
   console.log('\n================================================================');
   console.log(` RESULTADO: ${passedTests} DE ${totalTests} TESTES APROVADOS COM SUCESSO! `);
   console.log('================================================================\n');

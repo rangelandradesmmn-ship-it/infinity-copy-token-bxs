@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { DomainSyncBridge } from '@/components/common/DomainSyncBridge';
 import './globals.css';
 
 export const viewport: Viewport = {
@@ -75,7 +76,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <DomainSyncBridge />
+        {children}
+      </body>
     </html>
   );
 }

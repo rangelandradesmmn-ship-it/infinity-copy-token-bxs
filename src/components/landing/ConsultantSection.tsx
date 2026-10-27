@@ -85,7 +85,7 @@ export function ConsultantSection({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={onWhatsAppClick}
-                  className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-xl text-sm sm:text-base font-bold text-white bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-950 transition-all duration-200"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl text-sm sm:text-base font-bold text-white bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-950 transition-all duration-200"
                 >
                   <MessageCircle className="w-5 h-5" />
                   <span>Falar Diretamente com {displayName.split(' ')[0]}</span>

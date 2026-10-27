@@ -49,7 +49,6 @@ export function TokenChartSection({
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(contractAddress);
       } else {
-        // Fallback for older browsers
         const textArea = document.createElement('textarea');
         textArea.value = contractAddress;
         textArea.style.position = 'fixed';
@@ -149,12 +148,12 @@ export function TokenChartSection({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <a
                 href={cmcUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 text-xs font-semibold transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 text-xs font-semibold transition-colors"
               >
                 <span>Ver no CoinMarketCap DEX</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -163,7 +162,7 @@ export function TokenChartSection({
                 href={bscScanUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-semibold transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-semibold transition-colors"
               >
                 <span>BSCScan</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -172,7 +171,7 @@ export function TokenChartSection({
           </div>
 
           {/* Iframe Real-Time Chart */}
-          <div className="relative w-full h-[540px] sm:h-[620px] bg-slate-950">
+          <div className="relative w-full h-[460px] sm:h-[580px] lg:h-[620px] bg-slate-950">
             <iframe
               src={currentEmbedUrl}
               title="Gráfico em Tempo Real Token BXS"
@@ -190,7 +189,7 @@ export function TokenChartSection({
             <button
               type="button"
               onClick={handleCopyContract}
-              className={`w-full sm:w-auto min-w-[320px] px-8 py-4 rounded-2xl font-black text-sm sm:text-base tracking-wide flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-xl ${
+              className={`w-full sm:w-auto min-w-0 sm:min-w-[280px] px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl font-black text-sm sm:text-base tracking-wide flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-xl ${
                 copied
                   ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/30'
                   : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-600/30 ring-2 ring-blue-400/30'
@@ -211,7 +210,7 @@ export function TokenChartSection({
           </div>
 
           {/* Contract Address Display Card */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2 overflow-hidden text-left w-full sm:w-auto">
               <span className="text-slate-400 shrink-0 font-medium">Contrato BSC:</span>
               <code className="text-emerald-400 font-mono font-semibold truncate select-all px-2 py-1 bg-slate-950 rounded-lg border border-slate-800/80">

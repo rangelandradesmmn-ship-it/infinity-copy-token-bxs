@@ -11,6 +11,11 @@ interface FooterSectionProps {
 }
 
 export function FooterSection({ footer, brand, user }: FooterSectionProps) {
+  const [year, setYear] = React.useState<number>(2026);
+
+  React.useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
   return (
     <footer className="py-12 bg-slate-950 border-t border-slate-900 text-slate-400 text-xs sm:text-sm">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -53,7 +58,7 @@ export function FooterSection({ footer, brand, user }: FooterSectionProps) {
         <div className="pt-6 text-center text-xs text-slate-400 leading-relaxed max-w-3xl mx-auto">
           <p>{footer.legalText}</p>
           <p className="mt-2 text-slate-400">
-            © {new Date().getFullYear()} {footer.companyName}. Todos os direitos reservados.
+            © {year} {footer.companyName}. Todos os direitos reservados.
           </p>
         </div>
       </div>

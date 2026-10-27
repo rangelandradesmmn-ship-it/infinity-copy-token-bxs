@@ -42,13 +42,13 @@ export function LandingHeader({
               {brand.name ? brand.name.charAt(0).toUpperCase() : 'N'}
             </div>
           )}
-          <span className="font-bold text-white text-base sm:text-lg tracking-tight">
+          <span className="font-bold text-white text-sm sm:text-base md:text-lg tracking-tight truncate max-w-[130px] sm:max-w-none">
             {brand.name}
           </span>
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {user ? (
             <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-300">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
@@ -62,7 +62,7 @@ export function LandingHeader({
               target="_blank"
               rel="noopener noreferrer"
               onClick={onWhatsAppClick}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold text-emerald-400 bg-emerald-950/70 border border-emerald-500/40 hover:bg-emerald-900/60 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-lg text-xs sm:text-sm font-semibold text-emerald-400 bg-emerald-950/70 border border-emerald-500/40 hover:bg-emerald-900/60 transition-colors"
             >
               <MessageCircle className="w-4 h-4" />
               <span className="hidden sm:inline">WhatsApp</span>
@@ -72,10 +72,11 @@ export function LandingHeader({
           {!isPreview && (
             <Link
               href="/painel"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-800 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-lg text-xs sm:text-sm font-medium text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-800 transition-colors"
             >
               <LogIn className="w-3.5 h-3.5" />
-              <span>Área do Membro</span>
+              <span className="hidden sm:inline">Área do Membro</span>
+              <span className="sm:hidden">Entrar</span>
             </Link>
           )}
         </div>

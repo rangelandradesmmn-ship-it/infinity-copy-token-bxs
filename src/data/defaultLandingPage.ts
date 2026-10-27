@@ -3,22 +3,22 @@ import { LandingPageContent } from '@/types';
 export const initialLandingPageContent: LandingPageContent = {
   brand: {
     name: 'Infinity Copy - Token BXS',
-    logoUrl: '',
+    logoUrl: '/logo.png',
     primaryColor: '#2563eb', // Modern Blue
-    accentColor: '#10b981', // Emerald Green
+    accentColor: '#c5cecb',
     darkTheme: false,
     fontFamily: 'Inter',
     headingFontFamily: 'Inter',
   },
   hero: {
     enabled: true,
-    badge: '🚀 Plataforma Oficial de Expansão & Resultados',
-    title: 'Transforme Seus Resultados com a Maior Tecnologia de',
-    titleHighlight: 'Crescimento e Distribuição Digital',
+    badge: '🚀 Automação de operações de Futuros de Cripto',
+    title: 'Transforme Seus Resultados com a Melhor Tecnologia de',
+    titleHighlight: 'Automação de Operações de Futuro de Cripto',
     titleSize: 'md',
     titleMaxWidth: '4xl',
     subtitle:
-      'Descubra o ecossistema validado por milhares de profissionais. Treinamentos de ponta, suporte humanizado e uma estrutura pronta para você alavancar sua jornada hoje mesmo.',
+      'Descubra o ecossistema da Infinity Copy. Treinamentos de ponta, suporte humanizado e uma estrutura pronta para você alavancar sua jornada hoje mesmo.',
     showConsultantCard: true,
     primaryCtaText: 'Fazer Meu Cadastro Gratuito',
     secondaryCtaText: 'Falar Comigo no WhatsApp',
@@ -26,38 +26,38 @@ export const initialLandingPageContent: LandingPageContent = {
       id: 'hero-video-1',
       title: 'Apresentação Oficial do Ecossistema',
       description: 'Entenda em menos de 3 minutos como nossa infraestrutura funciona.',
-      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      url: 'https://youtu.be/4JYv1tHyUG4?si=pCQt1hKxWwY1s1UB',
       aspectRatio: '16:9',
       badge: 'Assista ao Vídeo Oficial',
     },
   },
   videosSection: {
     enabled: true,
-    title: 'Demonstrações e Resultados Práticos',
-    subtitle: 'Conheça em detalhes as ferramentas, estratégias e depoimentos rápidos de quem já está acelerando.',
+    title: 'Tutoriais & Apresentação',
+    subtitle: 'Saiba tudo sobre a Infinity Copy com nossos videos.',
     videos: [
       {
         id: 'vid-demo-1',
-        title: 'Visão Geral da Plataforma e Ferramentas',
+        title: 'Apresentação resumida da Infinity Copy',
         description: 'Tour guiado por todas as funcionalidades disponíveis na área do membro.',
-        url: 'https://www.youtube.com/watch?v=LXb3EKWsInQ',
+        url: 'https://youtu.be/4JYv1tHyUG4?si=pCQt1hKxWwY1s1UB',
         aspectRatio: '16:9',
         badge: 'Tour Completo',
       },
       {
         id: 'vid-demo-2',
-        title: 'Depoimento em 60 Segundos',
+        title: 'Trader Diego falando da automação e sustentabilidade',
         description: 'Feedback direto em formato vertical (Reels/Shorts).',
-        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        aspectRatio: '9:16',
+        url: 'https://youtu.be/Je3dmYucxms?si=_4ZC8ehtOZxaO6p9',
+        aspectRatio: '16:9',
         badge: 'Shorts 9:16',
       },
     ],
   },
   benefitsSection: {
     enabled: true,
-    title: 'Por Que Fazer Parte Deste Movimento?',
-    subtitle: 'Uma estrutura completa pensada exclusivamente para facilitar seu aprendizado e maximizar conversões.',
+    title: 'Por Que Investir na Infinity Copy é um excelente negócio?',
+    subtitle: 'Segurança, estabilidade, longevidade, lucratividade, network, Garantia BXS.',
     items: [
       {
         id: 'b-1',
@@ -116,7 +116,7 @@ export const initialLandingPageContent: LandingPageContent = {
         role: 'Empreendedora Digital',
         avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
         quote:
-          'A landing page personalizada trouxe uma credibilidade imensa para meus contatos. Todos os cliques vão direto pro meu WhatsApp e pro meu link de cadastro. Incrível!',
+          'Estou muito satisfeita com meus resultados na Infinity Copy, minha equipe está crescendo acelerada e todos estão super satisfeitos e motivados.',
         rating: 5,
       },
       {
@@ -125,7 +125,7 @@ export const initialLandingPageContent: LandingPageContent = {
         role: 'Consultor de Negócios',
         avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
         quote:
-          'O sistema é extremamente rápido e o fato do administrador atualizar vídeos e textos sem apagar meus dados individuais é genial. Poupa horas de trabalho!',
+          'o melhor de tudo está sendo a liberdade que tenho para trabalhar enquanto meu capital está sendo operado automaticamente.',
         rating: 5,
       },
       {
@@ -134,7 +134,7 @@ export const initialLandingPageContent: LandingPageContent = {
         role: 'Líder de Expansão',
         avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80',
         quote:
-          'Minha equipe inteira adotou as páginas clonadas. A conversão de cadastros subiu mais de 45% logo no primeiro mês.',
+          'o sistema de ganhos em rede é simplesmente fantástico, binário, residual , coisa de outro mundo, vida longa a Infinity Copy. ',
         rating: 5,
       },
     ],
@@ -152,21 +152,20 @@ export const initialLandingPageContent: LandingPageContent = {
       },
       {
         id: 'faq-2',
-        question: 'Como funciona o link exclusivo para os parceiros?',
-        answer:
-          'Cada membro cadastrado recebe uma URL única e personalizada (por exemplo, seudominio.com/p/seunome). Todos os botões de cadastro e contato do WhatsApp na sua página levam diretamente aos seus dados pessoais.',
+        question: 'Qual o Investimento mínimo?',
+        answer: 'Você pode iniciar a partir de 10 dólares em USDT ou PIX',
       },
       {
         id: 'faq-3',
-        question: 'Preciso entender de programação para personalizar minha página?',
+        question: 'Qual o mínimo de saque e qual a taxa?',
         answer:
-          'De forma alguma! Você só precisa informar seu nome, foto de perfil, link de cadastro e WhatsApp no seu painel. O sistema monta tudo automaticamente com padrão profissional.',
+          'saque mínimo de $1.00 e taxa de 10%, porem essa taxa é devolvida 100% em BXS, o token de utilidade da Infinity Copy.',
       },
       {
         id: 'faq-4',
-        question: 'O que acontece quando o administrador atualiza o site?',
+        question: 'Sou Obrigado a convidar pessoas para ter ganhos na empresa?',
         answer:
-          'A nova versão publicada pelo administrador sincroniza automaticamente em todas as páginas, atualizando vídeos, textos e identidade visual, sem alterar o seu link pessoal, seu WhatsApp, foto ou nome.',
+          'Absolutamente NÃO! sem indicar novos membros, você ganha até 3 tipos de renda com a Infinity Copy: rentabilidade de até 2% ao dia útil ( contrato de 200% ), ganhos ilimitados pelo copytrader usando a automação exclusiva para membros ativos, valorização do token BXS estocados em sua carteira.',
       },
       {
         id: 'faq-5',
@@ -197,7 +196,7 @@ export const initialLandingPageContent: LandingPageContent = {
   },
   ctaBanner: {
     enabled: true,
-    title: 'Não Deixe Para Depois: Comece Sua Mudança Hoje',
+    title: 'Comece Sua Mudança Hoje',
     subtitle:
       'Cadastre-se gratuitamente em menos de 2 minutos ou tire todas as suas dúvidas diretamente com seu consultor no WhatsApp.',
     ctaText: 'Criar Minha Conta Gratuita Agora',
@@ -213,9 +212,9 @@ export const initialLandingPageContent: LandingPageContent = {
     termsLink: '#termos',
   },
   defaultSettings: {
-    registrationUrl: 'https://exemplo-matriz.com/cadastro-oficial',
+    registrationUrl: 'https://meet.google.com/meet/qng-voma-xqm',
     whatsappCountryCode: '+55',
-    whatsappNumber: '11999990000',
+    whatsappNumber: '22997953907',
     whatsappMessage: 'Olá! Acessei a página oficial e gostaria de falar com o suporte.',
   },
 };

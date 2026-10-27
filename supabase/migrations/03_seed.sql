@@ -155,7 +155,7 @@ VALUES (
     },
     "footer": {
       "companyName": "NextScale Ecosystem do Brasil Ltda.",
-      "cnpj": "42.123.456/0001-89",
+      "cnpj": "",
       "legalText": "Todos os direitos reservados. Este site respeita rigorosamente a privacidade dos visitantes nos termos da Lei Geral de Proteção de Dados (LGPD - Lei 13.709/2018).",
       "privacyLink": "#privacidade",
       "termsLink": "#termos"

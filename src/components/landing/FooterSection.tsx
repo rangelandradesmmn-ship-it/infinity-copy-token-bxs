@@ -30,9 +30,6 @@ export function FooterSection({ footer, brand, user }: FooterSectionProps) {
               <span className="text-base font-bold text-white tracking-tight block">
                 {brand.name}
               </span>
-              {footer.cnpj && (
-                <p className="text-xs text-slate-500 mt-0.5">CNPJ: {footer.cnpj}</p>
-              )}
             </div>
           </div>
 

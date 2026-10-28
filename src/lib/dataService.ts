@@ -582,11 +582,29 @@ export async function getUserBySlug(slug: string): Promise<UserWithSettings | nu
   const cleanSlug = slug.toLowerCase().trim();
 
   if (isSupabaseConfigured() && supabase) {
-    const { data: profile } = await supabase
+    let { data: profile } = await supabase
       .from('profiles')
       .select('*')
       .eq('slug', cleanSlug)
       .single();
+
+    if (!profile && (cleanSlug === 'cadastro' || cleanSlug === 'rangel' || cleanSlug === 'master' || cleanSlug === 'admin')) {
+      const { data: rangel } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', 'rangelandradesmmn@gmail.com')
+        .single();
+      profile = rangel;
+    }
+
+    if (!profile && (cleanSlug === 'jorge' || cleanSlug === 'jorge-carvalho' || cleanSlug === 'jorgecarvalho')) {
+      const { data: jorge } = await supabase
+        .from('profiles')
+        .select('*')
+        .ilike('name', '%jorge%')
+        .single();
+      profile = jorge;
+    }
 
     if (!profile) return null;
 

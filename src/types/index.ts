@@ -8,6 +8,7 @@ export interface UserProfile {
   role: UserRole;
   status: UserStatus;
   slug: string;
+  password?: string;
   created_at: string;
   updated_at: string;
 }

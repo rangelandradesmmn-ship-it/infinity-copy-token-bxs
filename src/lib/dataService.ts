@@ -191,7 +191,7 @@ export async function authenticateUser(
     defaultPasswords
   );
 
-  const storedPassword = passwords[user.id];
+  const storedPassword = passwords[user.id] || user.password;
   const expectedPassword =
     storedPassword || (user.role === 'admin' ? 'admin123' : 'senha123456');
 
@@ -252,6 +252,19 @@ export async function updateUserPassword(
   );
   passwords[userId] = cleanPassword;
   setLocalItem(STORAGE_KEYS.PASSWORDS, passwords);
+
+  targetUser.password = cleanPassword;
+  setLocalItem(STORAGE_KEYS.USERS, allUsers);
+
+  if (isSupabaseConfigured() && supabase) {
+    const { error: supaErr } = await supabase
+      .from('profiles')
+      .update({ password: cleanPassword, updated_at: new Date().toISOString() })
+      .eq('id', userId);
+    if (supaErr) {
+      console.error('Failed to update password in Supabase:', supaErr);
+    }
+  }
 
   // Log audit action
   await logAdminAction(
@@ -1076,6 +1089,7 @@ export async function registerNewUser(
     role: 'user',
     status: 'active',
     slug: uniqueSlug,
+    password: password && password.trim() ? password.trim() : 'senha123456',
     created_at: now,
     updated_at: now,
   };

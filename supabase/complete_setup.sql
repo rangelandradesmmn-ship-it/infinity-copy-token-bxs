@@ -21,7 +21,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
 
 -- 2. TABELA USER_LANDING_SETTINGS (Campos Personalizados dos Parceiros)
 CREATE TABLE IF NOT EXISTS public.user_landing_settings (
-  id TEXT PRIMARY KEY,
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   user_id TEXT UNIQUE NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   profile_image_url TEXT DEFAULT '',
   registration_url TEXT DEFAULT '',

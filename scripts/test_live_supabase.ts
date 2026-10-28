@@ -44,6 +44,18 @@ async function testSupabase() {
   await supabase.from('landing_events').delete().eq('id', testEventId);
   console.log('[OK] Cleaned up test event.');
 
+  // 5. Test personalization update
+  const { updateAllowedUserPersonalization } = await import('../src/lib/dataService');
+  const res = await updateAllowedUserPersonalization('user-rangel-0001', {
+    whatsapp_number: '22997953907',
+  });
+  console.log('[Personalization update result]:', res);
+
+  // 6. Test registration
+  const { registerNewUser } = await import('../src/lib/dataService');
+  const reg = await registerNewUser('Carlos Teste', `carlos${Date.now()}@teste.com`, 'carlos-slug', 'senha123');
+  console.log('[Register test result]:', reg);
+
   console.log('\n>>> SUPABASE CLOUD ESTA 100% OPERACIONAL E CONECTADO COM SUCESSO! <<<');
 }
 

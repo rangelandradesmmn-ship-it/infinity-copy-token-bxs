@@ -784,15 +784,32 @@ export async function updateAllowedUserPersonalization(
     if (payload.whatsapp_message !== undefined)
       settingsUpdate.whatsapp_message = payload.whatsapp_message.trim();
 
-    const { error } = await supabase
+    const { data: existingSettings } = await supabase
       .from('user_landing_settings')
-      .upsert({
-        user_id: userId,
-        ...settingsUpdate,
-      });
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-    if (error) {
-      return { success: false, message: error.message };
+    let settingsError;
+    if (existingSettings?.id) {
+      const { error } = await supabase
+        .from('user_landing_settings')
+        .update(settingsUpdate)
+        .eq('user_id', userId);
+      settingsError = error;
+    } else {
+      const { error } = await supabase
+        .from('user_landing_settings')
+        .insert({
+          id: `set-${Date.now()}`,
+          user_id: userId,
+          ...settingsUpdate,
+        });
+      settingsError = error;
+    }
+
+    if (settingsError) {
+      return { success: false, message: settingsError.message };
     }
 
     return { success: true, message: 'Dados pessoais atualizados com sucesso!' };
@@ -1078,7 +1095,7 @@ export async function registerNewUser(
   password?: string
 ): Promise<{ success: boolean; user?: UserWithSettings; message: string }> {
   initLocalDatabase();
-  const users = getLocalItem<UserProfile[]>(STORAGE_KEYS.USERS, seedUsers);
+  const users = await getAllUsers();
 
   // Check email
   const existingEmail = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
@@ -1092,7 +1109,7 @@ export async function registerNewUser(
 
   let uniqueSlug = baseSlug;
   let counter = 1;
-  while (users.some((u) => u.slug === uniqueSlug)) {
+  while (users.some((u) => u.slug.toLowerCase() === uniqueSlug.toLowerCase())) {
     uniqueSlug = `${baseSlug}-${counter}`;
     counter++;
   }
@@ -1128,24 +1145,28 @@ export async function registerNewUser(
     if (profileErr) return { success: false, message: profileErr.message };
 
     await supabase.from('user_landing_settings').insert(initialSettings);
-  } else {
-    users.push(newUser);
-    setLocalItem(STORAGE_KEYS.USERS, users);
-
-    const allSettings = getLocalItem<Record<string, UserLandingSettings>>(
-      STORAGE_KEYS.SETTINGS,
-      seedUserSettings
-    );
-    allSettings[userId] = initialSettings;
-    setLocalItem(STORAGE_KEYS.SETTINGS, allSettings);
-
-    const passwords = getLocalItem<Record<string, string>>(
-      STORAGE_KEYS.PASSWORDS,
-      defaultPasswords
-    );
-    passwords[userId] = password && password.trim() ? password.trim() : 'senha123456';
-    setLocalItem(STORAGE_KEYS.PASSWORDS, passwords);
   }
+
+  // Keep local storage in sync
+  const localUsers = getLocalItem<UserProfile[]>(STORAGE_KEYS.USERS, seedUsers);
+  if (!localUsers.some((u) => u.id === newUser.id)) {
+    localUsers.push(newUser);
+    setLocalItem(STORAGE_KEYS.USERS, localUsers);
+  }
+
+  const allSettings = getLocalItem<Record<string, UserLandingSettings>>(
+    STORAGE_KEYS.SETTINGS,
+    seedUserSettings
+  );
+  allSettings[userId] = initialSettings;
+  setLocalItem(STORAGE_KEYS.SETTINGS, allSettings);
+
+  const passwords = getLocalItem<Record<string, string>>(
+    STORAGE_KEYS.PASSWORDS,
+    defaultPasswords
+  );
+  passwords[userId] = password && password.trim() ? password.trim() : 'senha123456';
+  setLocalItem(STORAGE_KEYS.PASSWORDS, passwords);
 
   return {
     success: true,

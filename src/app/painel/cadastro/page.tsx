@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { registerNewUser, setCurrentSessionUserId } from '@/lib/dataService';
 import { generateSlug } from '@/lib/security';
-import { UserPlus, ArrowRight, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { UserPlus, ArrowRight, Check, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 
 export default function UserRegisterPage() {
   const router = useRouter();
@@ -14,6 +14,7 @@ export default function UserRegisterPage() {
   const [email, setEmail] = useState('');
   const [slugCandidate, setSlugCandidate] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -134,14 +135,25 @@ export default function UserRegisterPage() {
             <label className="block text-xs font-semibold text-slate-300 mb-1">
               Senha de Acesso
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                className="w-full px-4 py-3 pr-11 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-lg transition-colors focus:outline-none"
+                title={showPassword ? 'Ocultar senha' : 'Ver senha para conferência'}
+                aria-label={showPassword ? 'Ocultar senha' : 'Ver senha para conferência'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4 text-blue-400" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
           <button

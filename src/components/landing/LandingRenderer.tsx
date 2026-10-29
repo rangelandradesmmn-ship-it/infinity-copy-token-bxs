@@ -2,10 +2,12 @@
 
 import React, { useEffect, useMemo, useCallback } from 'react';
 import { UserWithSettings, LandingPageContent } from '@/types';
+import { initialLandingPageContent } from '@/data/defaultLandingPage';
 import { buildWhatsAppUrl } from '@/lib/security';
 import { recordLandingEvent } from '@/lib/dataService';
 import { LandingHeader } from './LandingHeader';
 import { HeroSection } from './HeroSection';
+import { OfficialChannelsSection } from './OfficialChannelsSection';
 import { VideosSection } from './VideosSection';
 import { BenefitsSection } from './BenefitsSection';
 import { ConsultantSection } from './ConsultantSection';
@@ -65,6 +67,11 @@ export function LandingRenderer({
     }
     return '';
   }, [user, content]);
+
+  // 3. Resolve official channels: guaranteed fallback to initial default
+  const officialChannels = useMemo(() => {
+    return content.officialChannels || initialLandingPageContent.officialChannels;
+  }, [content.officialChannels]);
 
   // Page path for telemetry
   const pagePath = user ? `/p/${user.slug}` : '/';
@@ -129,6 +136,7 @@ export function LandingRenderer({
         <HeroSection
           hero={content.hero}
           brand={content.brand}
+          officialChannels={officialChannels}
           user={user}
           registrationUrl={registrationUrl}
           whatsAppUrl={whatsAppUrl}
@@ -138,6 +146,12 @@ export function LandingRenderer({
 
         {/* Videos Section */}
         <VideosSection videosSection={content.videosSection} />
+
+        {/* Official Channels & Live Meeting Rooms */}
+        <OfficialChannelsSection
+          officialChannels={officialChannels}
+          brand={content.brand}
+        />
 
         {/* Benefits Grid */}
         <BenefitsSection

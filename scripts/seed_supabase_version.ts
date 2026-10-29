@@ -23,7 +23,15 @@ async function main() {
     if (error) console.error('Error inserting version 1:', error);
     else console.log('Version 1 inserted successfully into Supabase!');
   } else {
-    console.log('Version 1 already exists in Supabase.');
+    const { error } = await supabase
+      .from('landing_page_versions')
+      .update({
+        content_json: initialLandingPageContent,
+        published_at: new Date().toISOString(),
+      })
+      .eq('version_number', 1);
+    if (error) console.error('Error updating version 1:', error);
+    else console.log('Version 1 content_json updated successfully in Supabase with officialChannels!');
   }
 }
 

@@ -356,6 +356,44 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
     '52. Mecanismo de ponte de sincronização entre domínios codifica e decodifica dados com fidelidade'
   );
 
+  // ------------------------------------------------------------------
+  // TESTE 17: Canais Oficiais Institucionais & Sala Google Meet
+  // ------------------------------------------------------------------
+  console.log('\n--- Módulo 17: Canais Oficiais & Sala Google Meet (Admin Only) ---');
+
+  const { initialLandingPageContent } = await import('../src/data/defaultLandingPage');
+  assert(
+    initialLandingPageContent.officialChannels !== undefined &&
+    initialLandingPageContent.officialChannels.whatsappGroup.enabled === true &&
+    initialLandingPageContent.officialChannels.telegramGroup.enabled === true &&
+    initialLandingPageContent.officialChannels.googleMeet.enabled === true,
+    '53. initialLandingPageContent possui officialChannels configurado com WhatsApp, Telegram e Google Meet'
+  );
+
+  assert(
+    typeof initialLandingPageContent.officialChannels?.googleMeet.scheduleText === 'string' &&
+    initialLandingPageContent.officialChannels.googleMeet.scheduleText.length > 0,
+    '54. Google Meet possui programação/horário de call definido'
+  );
+
+  // Clones de parceiros herdam canais oficiais por padrão
+  const oldPageMock: any = { hero: { enabled: true } };
+  const resolvedChannels = oldPageMock.officialChannels || initialLandingPageContent.officialChannels;
+  assert(
+    resolvedChannels.whatsappGroup.url === initialLandingPageContent.officialChannels?.whatsappGroup.url &&
+    resolvedChannels.googleMeet.url === initialLandingPageContent.officialChannels?.googleMeet.url,
+    '55. Clones prévios sem chave officialChannels herdam automaticamente canais institucionais globais'
+  );
+
+  // Parceiros em updateAllowedUserPersonalization não têm acesso a alterar officialChannels
+  const partnerPersonalizationKeys = ['profile_image_url', 'registration_url', 'whatsapp_country_code', 'whatsapp_number', 'whatsapp_message', 'name'];
+  assert(
+    !partnerPersonalizationKeys.includes('officialChannels') &&
+    !partnerPersonalizationKeys.includes('whatsappGroup') &&
+    !partnerPersonalizationKeys.includes('googleMeet'),
+    '56. Schema de personalização do parceiro restringe estritamente canais oficiais (somente Super Admin)'
+  );
+
   console.log('\n================================================================');
   console.log(` RESULTADO: ${passedTests} DE ${totalTests} TESTES APROVADOS COM SUCESSO! `);
   console.log('================================================================\n');

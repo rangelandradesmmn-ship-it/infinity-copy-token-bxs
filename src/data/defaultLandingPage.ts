@@ -194,6 +194,32 @@ export const initialLandingPageContent: LandingPageContent = {
     bscScanUrl:
       'https://bscscan.com/token/0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
   },
+  officialChannels: {
+    enabled: true,
+    badge: 'Comunidade & Reuniões Oficiais',
+    title: 'Participe dos Nossos Canais & Reuniões ao Vivo',
+    subtitle:
+      'Acesse nossos grupos oficiais no WhatsApp, Telegram e participe das salas diárias de apresentação e mentoria no Google Meet.',
+    whatsappGroup: {
+      enabled: true,
+      url: 'https://chat.whatsapp.com/invite',
+      buttonText: 'Grupo VIP WhatsApp',
+      description: 'Avisos em primeira mão, networking e comunicados diários.',
+    },
+    telegramGroup: {
+      enabled: true,
+      url: 'https://t.me/infinitycopy',
+      buttonText: 'Canal Oficial Telegram',
+      description: 'Alertas rápidos, materiais e novidades em tempo real.',
+    },
+    googleMeet: {
+      enabled: true,
+      url: 'https://meet.google.com/meet/qng-voma-xqm',
+      buttonText: 'Sala Google Meet',
+      description: 'Apresentações do projeto e mentorias diárias ao vivo.',
+      scheduleText: 'Segunda a Sexta às 20h',
+    },
+  },
   ctaBanner: {
     enabled: true,
     title: 'Comece Sua Mudança Hoje',

@@ -61,6 +61,27 @@ export interface FaqItem {
   answer: string;
 }
 
+export interface OfficialChannelItem {
+  enabled: boolean;
+  url: string;
+  buttonText: string;
+  description?: string;
+}
+
+export interface GoogleMeetChannelItem extends OfficialChannelItem {
+  scheduleText?: string;
+}
+
+export interface OfficialChannels {
+  enabled: boolean;
+  badge?: string;
+  title: string;
+  subtitle: string;
+  whatsappGroup: OfficialChannelItem;
+  telegramGroup: OfficialChannelItem;
+  googleMeet: GoogleMeetChannelItem;
+}
+
 export interface LandingPageContent {
   brand: {
     name: string;
@@ -133,6 +154,7 @@ export interface LandingPageContent {
     coinMarketCapUrl: string;
     bscScanUrl?: string;
   };
+  officialChannels?: OfficialChannels;
   ctaBanner: {
     enabled: boolean;
     title: string;

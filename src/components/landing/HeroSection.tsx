@@ -2,14 +2,15 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { UserWithSettings, LandingPageContent } from '@/types';
+import { UserWithSettings, LandingPageContent, OfficialChannels } from '@/types';
 import { VideoPlayer } from '@/components/ui/VideoPlayer';
-import { Sparkles, ArrowRight, MessageCircle, ShieldCheck, User } from 'lucide-react';
+import { Sparkles, ArrowRight, MessageCircle, ShieldCheck, User, Send, Video } from 'lucide-react';
 import { FONT_FAMILY_MAP } from './LandingRenderer';
 
 interface HeroSectionProps {
   hero: LandingPageContent['hero'];
   brand: LandingPageContent['brand'];
+  officialChannels?: OfficialChannels;
   user?: UserWithSettings;
   registrationUrl: string;
   whatsAppUrl: string;
@@ -41,6 +42,7 @@ const SUBTITLE_SIZE_CLASSES: Record<string, string> = {
 export function HeroSection({
   hero,
   brand,
+  officialChannels,
   user,
   registrationUrl,
   whatsAppUrl,
@@ -164,6 +166,51 @@ export function HeroSection({
               </a>
             )}
           </div>
+
+          {/* Quick Channels Buttons: WhatsApp Group, Telegram & Google Meet */}
+          {officialChannels?.enabled && (
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1 hidden sm:inline">
+                Canais Oficiais:
+              </span>
+              {officialChannels.whatsappGroup?.enabled && officialChannels.whatsappGroup?.url && (
+                <a
+                  href={officialChannels.whatsappGroup.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 hover:text-white text-xs font-semibold transition-all duration-200 shadow-sm hover:scale-105"
+                  title="Grupo Oficial no WhatsApp"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{officialChannels.whatsappGroup.buttonText || 'Grupo WhatsApp'}</span>
+                </a>
+              )}
+              {officialChannels.telegramGroup?.enabled && officialChannels.telegramGroup?.url && (
+                <a
+                  href={officialChannels.telegramGroup.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-sky-950/80 hover:bg-sky-900 border border-sky-500/40 text-sky-300 hover:text-white text-xs font-semibold transition-all duration-200 shadow-sm hover:scale-105"
+                  title="Canal Oficial no Telegram"
+                >
+                  <Send className="w-3.5 h-3.5 text-sky-400" />
+                  <span>{officialChannels.telegramGroup.buttonText || 'Telegram'}</span>
+                </a>
+              )}
+              {officialChannels.googleMeet?.enabled && officialChannels.googleMeet?.url && (
+                <a
+                  href={officialChannels.googleMeet.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-950/80 hover:bg-amber-900 border border-amber-500/40 text-amber-300 hover:text-white text-xs font-semibold transition-all duration-200 shadow-sm hover:scale-105"
+                  title="Sala de Reunião Google Meet"
+                >
+                  <Video className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{officialChannels.googleMeet.buttonText || 'Google Meet'}</span>
+                </a>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Hero Video */}

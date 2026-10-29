@@ -35,7 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_user_landing_settings_user_id ON public.user_land
 
 -- 3. TABELA LANDING_PAGE_VERSIONS (Gerenciamento de Versões da Landing Page Master)
 CREATE TABLE IF NOT EXISTS public.landing_page_versions (
-  id TEXT PRIMARY KEY,
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   version_number INTEGER NOT NULL,
   content_json JSONB NOT NULL,
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
@@ -107,6 +107,9 @@ CREATE POLICY "versions_insert_all" ON public.landing_page_versions FOR INSERT W
 
 DROP POLICY IF EXISTS "versions_update_all" ON public.landing_page_versions;
 CREATE POLICY "versions_update_all" ON public.landing_page_versions FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "versions_delete_all" ON public.landing_page_versions;
+CREATE POLICY "versions_delete_all" ON public.landing_page_versions FOR DELETE USING (true);
 
 -- Permissões para landing_events
 DROP POLICY IF EXISTS "events_select_all" ON public.landing_events;

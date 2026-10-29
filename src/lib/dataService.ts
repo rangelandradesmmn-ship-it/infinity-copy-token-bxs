@@ -383,7 +383,7 @@ export async function saveLandingPageDraft(
       .single();
 
     if (existingDraft) {
-      await supabase
+      const { error: updateErr } = await supabase
         .from('landing_page_versions')
         .update({
           content_json: content,
@@ -391,6 +391,10 @@ export async function saveLandingPageDraft(
           created_at: new Date().toISOString(),
         })
         .eq('id', existingDraft.id);
+
+      if (updateErr) {
+        return { success: false, message: updateErr.message };
+      }
     } else {
       // Get highest version
       const { data: highest } = await supabase
@@ -401,12 +405,17 @@ export async function saveLandingPageDraft(
         .single();
       const nextVer = (highest?.version_number || 1) + 1;
 
-      await supabase.from('landing_page_versions').insert({
+      const { error: insertErr } = await supabase.from('landing_page_versions').insert({
+        id: `ver-draft-${Date.now()}`,
         version_number: nextVer,
         content_json: content,
         status: 'draft',
         created_by: adminId,
       });
+
+      if (insertErr) {
+        return { success: false, message: insertErr.message };
+      }
     }
 
     await logAdminAction(adminId, 'SAVE_DRAFT', 'landing_page_version', 'draft', {
@@ -460,14 +469,20 @@ export async function publishLandingPage(
       .single();
 
     const newVersionNumber = (highest?.version_number || 0) + 1;
+    const newVersionId = `ver-${newVersionNumber}-${Date.now()}`;
 
     // Delete or update existing draft
-    await supabase.from('landing_page_versions').delete().eq('status', 'draft');
+    try {
+      await supabase.from('landing_page_versions').delete().eq('status', 'draft');
+    } catch {
+      // non-blocking
+    }
 
     // Insert new published version
     const { data, error } = await supabase
       .from('landing_page_versions')
       .insert({
+        id: newVersionId,
         version_number: newVersionNumber,
         content_json: content,
         status: 'published',

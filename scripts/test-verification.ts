@@ -20,6 +20,11 @@ import {
   updateUserPassword,
   getAllUsers,
   getAdminDashboardMetrics,
+  saveChatVisitorAuth,
+  getChatVisitorAuth,
+  clearChatVisitorAuth,
+  recordChatParticipantPresence,
+  getActiveChatParticipants,
 } from '../src/lib/dataService';
 
 console.log('================================================================');
@@ -562,6 +567,44 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
     partnerPrivateMsg.success === true &&
     partnerPrivateMsg.message?.recipient_id === 'admin',
     '68. Espelhamento do chat no painel suporta canal privado direto com Super Admin'
+  );
+
+  console.log('\n--- Módulo 19: Autenticação de Visitantes no Chat & Conectados ---');
+  const visitorAuth = saveChatVisitorAuth({
+    name: 'Carlos Visitante Teste',
+    email: 'carlos.visitante@teste.com',
+    whatsapp: '(11) 98765-4321',
+  });
+  assert(
+    visitorAuth.name === 'Carlos Visitante Teste' &&
+    visitorAuth.email === 'carlos.visitante@teste.com' &&
+    visitorAuth.whatsapp.includes('987654321'),
+    '69. Visitante fora do painel identifica-se com Nome, E-mail e WhatsApp'
+  );
+
+  await recordChatParticipantPresence({
+    id: visitorAuth.id,
+    name: visitorAuth.name,
+    role: 'visitor',
+    email: visitorAuth.email,
+    whatsapp: visitorAuth.whatsapp,
+    isOnline: true,
+    lastSeen: new Date().toISOString(),
+  });
+  assert(true, '70. Presença de participante é registrada com sucesso');
+
+  const participants = await getActiveChatParticipants();
+  const foundVisitor = participants.find((p) => p.id === visitorAuth.id);
+  assert(
+    participants.length > 0 && !!foundVisitor && foundVisitor.name === 'Carlos Visitante Teste',
+    '71. Lista de participantes conectados exibe visitante autenticado em tempo real'
+  );
+
+  clearChatVisitorAuth();
+  const clearedAuth = getChatVisitorAuth();
+  assert(
+    clearedAuth === null,
+    '72. Visitante encerra sessão e limpa credenciais com sucesso'
   );
 
   // Retorna presença para modo automático e garante admin deslogado (offline)

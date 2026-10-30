@@ -289,3 +289,22 @@ export interface UserChatRestriction {
   reason?: string;
 }
 
+export interface ChatVisitorAuth {
+  id: string;
+  name: string;
+  email: string;
+  whatsapp: string;
+  identifiedAt: string;
+}
+
+export interface ChatParticipant {
+  id: string;
+  name: string;
+  role: ChatUserRole;
+  email?: string;
+  whatsapp?: string;
+  lastSeen: string;
+  isOnline: boolean;
+}
+
+

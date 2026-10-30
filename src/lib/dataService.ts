@@ -12,6 +12,9 @@ import {
   ChatMessage,
   ChatSettings,
   UserChatRestriction,
+  ChatVisitorAuth,
+  ChatParticipant,
+  ChatUserRole,
 } from '@/types';
 import { initialLandingPageContent } from '@/data/defaultLandingPage';
 import {
@@ -38,6 +41,8 @@ const STORAGE_KEYS = {
   CHAT_SETTINGS: 'clonelp_chat_settings',
   CHAT_RESTRICTIONS: 'clonelp_chat_restrictions',
   ADMIN_PRESENCE: 'clonelp_admin_presence',
+  CHAT_VISITOR_AUTH: 'clonelp_chat_visitor_auth',
+  CHAT_PARTICIPANTS: 'clonelp_chat_participants',
 };
 
 const TEST_USER_IDS = new Set(['admin-uuid-0001', 'user-uuid-0001', 'user-uuid-0002', 'user-uuid-0003']);
@@ -1401,6 +1406,215 @@ export async function getAdminPresenceStatus(): Promise<{ isOnline: boolean; man
   return { isOnline: false, manualOverride: 'auto', lastSeen: '' };
 }
 
+// 1.1. Visitor Identification for Chat (Outside Panel)
+export function getChatVisitorAuth(): ChatVisitorAuth | null {
+  if (typeof window === 'undefined') return null;
+  return getLocalItem<ChatVisitorAuth | null>(STORAGE_KEYS.CHAT_VISITOR_AUTH, null);
+}
+
+export function saveChatVisitorAuth(data: {
+  name: string;
+  email: string;
+  whatsapp: string;
+  id?: string;
+}): ChatVisitorAuth {
+  const existingId =
+    data.id ||
+    (typeof window !== 'undefined' ? localStorage.getItem('clonelp_visitor_id') : null) ||
+    `vis_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  const auth: ChatVisitorAuth = {
+    id: existingId,
+    name: data.name.trim(),
+    email: data.email.trim().toLowerCase(),
+    whatsapp: data.whatsapp.replace(/\D/g, ''),
+    identifiedAt: new Date().toISOString(),
+  };
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('clonelp_visitor_id', auth.id);
+    localStorage.setItem('clonelp_visitor_name', auth.name);
+  }
+
+  setLocalItem(STORAGE_KEYS.CHAT_VISITOR_AUTH, auth);
+
+  // Record presence immediately
+  recordChatParticipantPresence({
+    id: auth.id,
+    name: auth.name,
+    role: 'visitor',
+    email: auth.email,
+    whatsapp: auth.whatsapp,
+    isOnline: true,
+    lastSeen: auth.identifiedAt,
+  });
+
+  return auth;
+}
+
+export function clearChatVisitorAuth(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEYS.CHAT_VISITOR_AUTH);
+  }
+}
+
+// 1.2. Active Chat Participants Presence
+export async function recordChatParticipantPresence(participant: ChatParticipant): Promise<void> {
+  const now = new Date().toISOString();
+  const item: ChatParticipant = {
+    ...participant,
+    lastSeen: now,
+    isOnline: participant.isOnline !== false,
+  };
+
+  // 1. Update in local storage
+  initLocalDatabase();
+  const currentList = getLocalItem<ChatParticipant[]>(STORAGE_KEYS.CHAT_PARTICIPANTS, []);
+  const idx = currentList.findIndex(
+    (p) => p.id === item.id || (p.email && item.email && p.email.toLowerCase() === item.email.toLowerCase())
+  );
+  if (idx >= 0) {
+    currentList[idx] = { ...currentList[idx], ...item, lastSeen: now, isOnline: item.isOnline };
+  } else {
+    currentList.push(item);
+  }
+  setLocalItem(STORAGE_KEYS.CHAT_PARTICIPANTS, currentList);
+
+  // 2. Sync with Supabase (chat_participants or fallback to landing_events)
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { error: partErr } = await supabase.from('chat_participants').upsert({
+        id: item.id,
+        name: item.name,
+        email: item.email || null,
+        whatsapp: item.whatsapp || null,
+        role: item.role,
+        is_online: item.isOnline,
+        last_seen: now,
+      });
+
+      if (partErr) {
+        // Fallback to landing_events
+        await supabase.from('landing_events').insert({
+          id: `pres-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          event_type: 'page_view',
+          page_path: '/chat',
+          user_id: item.role === 'partner' ? item.id : null,
+          metadata: {
+            is_chat_presence: true,
+            participant_id: item.id,
+            name: item.name,
+            email: item.email,
+            whatsapp: item.whatsapp,
+            role: item.role,
+            is_online: item.isOnline,
+            last_seen: now,
+          },
+        });
+      }
+    } catch {}
+  }
+}
+
+export async function getActiveChatParticipants(): Promise<ChatParticipant[]> {
+  const now = Date.now();
+  const ACTIVE_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
+  const participantsMap = new Map<string, ChatParticipant>();
+
+  // 1. Check Super Admin status
+  const presence = await getAdminPresenceStatus();
+  if (presence.isOnline) {
+    participantsMap.set('user-rangel-0001', {
+      id: 'user-rangel-0001',
+      name: 'Rangel Andrade',
+      role: 'admin',
+      email: 'rangelandradesmmn@gmail.com',
+      whatsapp: '22997953907',
+      isOnline: true,
+      lastSeen: presence.lastSeen || new Date().toISOString(),
+    });
+  }
+
+  // 2. Read from Supabase Cloud (chat_participants or landing_events)
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data: dbParts, error: partErr } = await supabase
+        .from('chat_participants')
+        .select('*')
+        .eq('is_online', true)
+        .order('last_seen', { ascending: false });
+
+      if (!partErr && dbParts && dbParts.length > 0) {
+        dbParts.forEach((p: any) => {
+          const diffMs = now - new Date(p.last_seen).getTime();
+          if (diffMs < ACTIVE_WINDOW_MS) {
+            participantsMap.set(p.id, {
+              id: p.id,
+              name: p.name,
+              role: p.role as ChatUserRole,
+              email: p.email,
+              whatsapp: p.whatsapp,
+              lastSeen: p.last_seen,
+              isOnline: true,
+            });
+          }
+        });
+      } else {
+        // Fallback: check landing_events
+        const threeMinAgo = new Date(now - ACTIVE_WINDOW_MS).toISOString();
+        const { data: events } = await supabase
+          .from('landing_events')
+          .select('*')
+          .eq('page_path', '/chat')
+          .gte('created_at', threeMinAgo)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (events) {
+          events.forEach((evt: any) => {
+            const meta = evt.metadata;
+            if (meta?.is_chat_presence && meta.participant_id && meta.is_online !== false) {
+              const diffMs = now - new Date(meta.last_seen || evt.created_at).getTime();
+              if (diffMs < ACTIVE_WINDOW_MS && !participantsMap.has(meta.participant_id)) {
+                participantsMap.set(meta.participant_id, {
+                  id: meta.participant_id,
+                  name: meta.name || 'Participante',
+                  role: (meta.role as ChatUserRole) || 'visitor',
+                  email: meta.email,
+                  whatsapp: meta.whatsapp,
+                  lastSeen: meta.last_seen || evt.created_at,
+                  isOnline: true,
+                });
+              }
+            }
+          });
+        }
+      }
+    } catch {}
+  }
+
+  // 3. Merge local storage participants
+  initLocalDatabase();
+  const localList = getLocalItem<ChatParticipant[]>(STORAGE_KEYS.CHAT_PARTICIPANTS, []);
+  localList.forEach((p) => {
+    const diffMs = now - new Date(p.lastSeen).getTime();
+    if (p.isOnline && diffMs < ACTIVE_WINDOW_MS) {
+      if (!participantsMap.has(p.id)) {
+        participantsMap.set(p.id, p);
+      }
+    }
+  });
+
+  // 4. Return sorted: Admin first, then partners, then visitors
+  return Array.from(participantsMap.values()).sort((a, b) => {
+    if (a.role === 'admin') return -1;
+    if (b.role === 'admin') return 1;
+    if (a.role === 'partner' && b.role !== 'partner') return -1;
+    if (b.role === 'partner' && a.role !== 'partner') return 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 // 2. Chat Settings Management
 export async function getChatSettings(): Promise<ChatSettings> {
   let settings = getLocalItem<ChatSettings>(STORAGE_KEYS.CHAT_SETTINGS, initialChatSettings);
@@ -1629,6 +1843,15 @@ export async function sendChatMessage(payload: {
     is_pinned: false,
     created_at: now,
   };
+
+  // Record presence of active sender
+  recordChatParticipantPresence({
+    id: payload.sender_id,
+    name: payload.sender_name.trim() || 'Participante',
+    role: payload.sender_role,
+    isOnline: true,
+    lastSeen: now,
+  });
 
   const allMessages = getLocalItem<ChatMessage[]>(STORAGE_KEYS.CHAT_MESSAGES, initialChatMessages);
   allMessages.push(newMsg);

@@ -18,12 +18,17 @@ import {
   AlertCircle,
   Check,
   Sparkles,
+  Phone,
+  Mail,
+  UserCheck,
+  ExternalLink,
 } from 'lucide-react';
 import {
   ChatMessage,
   ChatSettings,
   UserChatRestriction,
   UserWithSettings,
+  ChatParticipant,
 } from '@/types';
 import {
   getChatSettings,
@@ -39,6 +44,7 @@ import {
   clearPublicChat,
   recordAdminHeartbeat,
   getAdminPresenceStatus,
+  getActiveChatParticipants,
 } from '@/lib/dataService';
 
 interface AdminChatModerationProps {
@@ -46,7 +52,7 @@ interface AdminChatModerationProps {
 }
 
 export function AdminChatModeration({ currentAdmin }: AdminChatModerationProps) {
-  const [activeTab, setActiveTab] = useState<'public' | 'private' | 'muted'>('public');
+  const [activeTab, setActiveTab] = useState<'public' | 'private' | 'participants' | 'muted'>('public');
 
   const [settings, setSettings] = useState<ChatSettings | null>(null);
   const [presence, setPresence] = useState<{ isOnline: boolean; manualOverride: 'auto' | 'online' | 'offline' }>({
@@ -57,6 +63,8 @@ export function AdminChatModeration({ currentAdmin }: AdminChatModerationProps) 
   const [publicMessages, setPublicMessages] = useState<ChatMessage[]>([]);
   const [privateMessages, setPrivateMessages] = useState<ChatMessage[]>([]);
   const [mutedUsers, setMutedUsers] = useState<UserChatRestriction[]>([]);
+  const [participants, setParticipants] = useState<ChatParticipant[]>([]);
+  const [participantSearch, setParticipantSearch] = useState('');
 
   // Selected private conversation
   const [selectedVisitorId, setSelectedVisitorId] = useState<string | null>(null);
@@ -74,12 +82,13 @@ export function AdminChatModeration({ currentAdmin }: AdminChatModerationProps) 
       // Record heartbeat
       recordAdminHeartbeat(currentAdmin.id, true);
 
-      const [s, pres, pub, priv, mList] = await Promise.all([
+      const [s, pres, pub, priv, mList, pList] = await Promise.all([
         getChatSettings(),
         getAdminPresenceStatus(),
         getChatMessages({ type: 'public', includeDeleted: true }),
         getChatMessages({ type: 'private' }),
         getMutedUsers(),
+        getActiveChatParticipants(),
       ]);
 
       setSettings(s);
@@ -87,6 +96,7 @@ export function AdminChatModeration({ currentAdmin }: AdminChatModerationProps) 
       setPublicMessages(pub);
       setPrivateMessages(priv);
       setMutedUsers(mList);
+      setParticipants(pList);
 
       if (s.pinnedMessage && !pinTextInput) {
         setPinTextInput(s.pinnedMessage);
@@ -458,6 +468,19 @@ export function AdminChatModeration({ currentAdmin }: AdminChatModerationProps) 
 
         <button
           type="button"
+          onClick={() => setActiveTab('participants')}
+          className={`flex items-center gap-2 px-4 py-3 rounded-t-xl transition-colors border-b-2 ${
+            activeTab === 'participants'
+              ? 'border-purple-500 text-white bg-slate-800/50'
+              : 'border-transparent text-slate-400 hover:text-white'
+          }`}
+        >
+          <UserCheck className="w-4 h-4 text-emerald-400" />
+          <span>Conectados no Chat ({participants.length})</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab('muted')}
           className={`flex items-center gap-2 px-4 py-3 rounded-t-xl transition-colors border-b-2 ${
             activeTab === 'muted'
@@ -735,7 +758,208 @@ export function AdminChatModeration({ currentAdmin }: AdminChatModerationProps) 
         </div>
       )}
 
-      {/* TAB 3: USUÁRIOS SILENCIADOS */}
+      {/* TAB 3: CONECTADOS NO CHAT */}
+      {activeTab === 'participants' && (
+        <div className="space-y-4">
+          {/* Header Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+              <span className="text-[11px] text-slate-400 font-semibold block">Total Conectados</span>
+              <span className="text-xl font-black text-white mt-1 block">{participants.length}</span>
+            </div>
+            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+              <span className="text-[11px] text-emerald-400 font-semibold block">Admin Online</span>
+              <span className="text-xl font-black text-emerald-400 mt-1 block">
+                {presence.isOnline ? '🟢 Ativo' : '⚪ Offline'}
+              </span>
+            </div>
+            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+              <span className="text-[11px] text-blue-400 font-semibold block">Parceiros</span>
+              <span className="text-xl font-black text-blue-400 mt-1 block">
+                {participants.filter((p) => p.role === 'partner').length}
+              </span>
+            </div>
+            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+              <span className="text-[11px] text-purple-400 font-semibold block">Visitantes</span>
+              <span className="text-xl font-black text-purple-400 mt-1 block">
+                {participants.filter((p) => p.role === 'visitor').length}
+              </span>
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="flex items-center gap-3 bg-slate-950 p-3 rounded-2xl border border-slate-800">
+            <Search className="w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={participantSearch}
+              onChange={(e) => setParticipantSearch(e.target.value)}
+              placeholder="Buscar por nome, e-mail, WhatsApp ou perfil..."
+              className="flex-1 bg-transparent text-white text-xs outline-none placeholder-slate-500"
+            />
+            {participantSearch && (
+              <button
+                type="button"
+                onClick={() => setParticipantSearch('')}
+                className="text-xs text-slate-400 hover:text-white"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+
+          {/* Participants Table */}
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden">
+            {participants.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 text-xs">
+                Nenhum participante conectado no momento.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-800">
+                {participants
+                  .filter((p) => {
+                    if (!participantSearch.trim()) return true;
+                    const q = participantSearch.toLowerCase();
+                    return (
+                      p.name.toLowerCase().includes(q) ||
+                      (p.email && p.email.toLowerCase().includes(q)) ||
+                      (p.whatsapp && p.whatsapp.includes(q)) ||
+                      p.role.toLowerCase().includes(q)
+                    );
+                  })
+                  .map((p) => {
+                    const isAdmin = p.role === 'admin';
+                    const isPartner = p.role === 'partner';
+                    const isMe = p.id === currentAdmin.id;
+
+                    return (
+                      <div
+                        key={p.id}
+                        className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-900/40 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="relative shrink-0">
+                            <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center font-bold text-white text-sm">
+                              {p.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span
+                              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-950 ${
+                                p.isOnline ? 'bg-emerald-400' : 'bg-slate-500'
+                              }`}
+                            />
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-bold text-white truncate">{p.name}</span>
+                              {isAdmin && (
+                                <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-extrabold border border-purple-500/30 text-[10px] flex items-center gap-1">
+                                  <Crown className="w-3 h-3 text-amber-400" />
+                                  <span>SUPER ADMIN</span>
+                                </span>
+                              )}
+                              {isPartner && (
+                                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold border border-blue-500/30 text-[10px]">
+                                  PARCEIRO CREDENCIADO
+                                </span>
+                              )}
+                              {p.role === 'visitor' && (
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 font-semibold border border-emerald-500/20 text-[10px]">
+                                  VISITANTE IDENTIFICADO
+                                </span>
+                              )}
+                              {isMe && (
+                                <span className="text-[10px] text-purple-400 font-medium">
+                                  (Sua Conta)
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1 flex-wrap">
+                              {p.email && (
+                                <a
+                                  href={`mailto:${p.email}`}
+                                  className="flex items-center gap-1 hover:text-white transition-colors"
+                                  title="Enviar e-mail"
+                                >
+                                  <Mail className="w-3 h-3 text-slate-500" />
+                                  <span>{p.email}</span>
+                                </a>
+                              )}
+                              {p.whatsapp && (
+                                <a
+                                  href={`https://wa.me/${p.whatsapp.replace(/\D/g, '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition-colors font-medium"
+                                  title="Abrir WhatsApp Web"
+                                >
+                                  <Phone className="w-3 h-3" />
+                                  <span>{p.whatsapp}</span>
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              )}
+                              <span className="text-slate-500">
+                                {p.isOnline
+                                  ? '🟢 Conectado agora'
+                                  : `Visto em ${new Date(p.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Actions for Admin */}
+                        {!isMe && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            {p.whatsapp && (
+                              <a
+                                href={`https://wa.me/${p.whatsapp.replace(/\D/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                                title="Conversar no WhatsApp"
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                                <span>WhatsApp</span>
+                              </a>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedVisitorId(p.id);
+                                setActiveTab('private');
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-purple-950/60 hover:bg-purple-900 border border-purple-500/40 text-purple-200 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                              title="Abrir chamado privado no chat"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span>Privado</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                muteUser(p.id, p.name, currentAdmin.id);
+                                loadData();
+                              }}
+                              className="p-2 rounded-xl bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/30 text-amber-300 transition-colors"
+                              title="Silenciar usuário"
+                            >
+                              <VolumeX className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: USUÁRIOS SILENCIADOS */}
       {activeTab === 'muted' && (
         <div className="space-y-3">
           <p className="text-xs text-slate-400">

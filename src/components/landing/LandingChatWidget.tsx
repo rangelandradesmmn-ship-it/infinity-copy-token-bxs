@@ -10,6 +10,7 @@ import {
   VolumeX,
   Clock,
   CheckCheck,
+  Check,
   Pin,
   Lock,
   Unlock,
@@ -21,11 +22,21 @@ import {
   HelpCircle,
   MessageCircle,
   ChevronDown,
+  UserCheck,
+  User,
+  Mail,
+  Phone,
+  ArrowLeft,
+  ExternalLink,
+  Edit2,
+  LogOut,
 } from 'lucide-react';
 import {
   ChatMessage,
   ChatSettings,
   UserWithSettings,
+  ChatVisitorAuth,
+  ChatParticipant,
 } from '@/types';
 import {
   getChatSettings,
@@ -38,6 +49,11 @@ import {
   getCurrentSessionUser,
   markPrivateMessagesAsRead,
   recordAdminHeartbeat,
+  getChatVisitorAuth,
+  saveChatVisitorAuth,
+  clearChatVisitorAuth,
+  getActiveChatParticipants,
+  recordChatParticipantPresence,
 } from '@/lib/dataService';
 
 interface LandingChatWidgetProps {
@@ -69,6 +85,18 @@ export function LandingChatWidget({
   const [isEditingName, setIsEditingName] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserWithSettings | null>(initialUser || null);
 
+  // Mandatory identification for visitors outside the panel
+  const [visitorAuth, setVisitorAuth] = useState<ChatVisitorAuth | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authName, setAuthName] = useState('');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authWhatsapp, setAuthWhatsapp] = useState('');
+  const [authError, setAuthError] = useState('');
+
+  // Online Participants
+  const [participants, setParticipants] = useState<ChatParticipant[]>([]);
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+
   // Chat Data
   const [settings, setSettings] = useState<ChatSettings | null>(null);
   const [publicMessages, setPublicMessages] = useState<ChatMessage[]>([]);
@@ -88,20 +116,30 @@ export function LandingChatWidget({
   const prevMessagesCountRef = useRef(0);
   const lastMsgIdRef = useRef<string | null>(null);
 
-  // Initialize Visitor ID and Session
+  // Initialize Visitor ID, Auth and Session
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    let vId = localStorage.getItem('clonelp_visitor_id');
-    if (!vId) {
-      vId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-      localStorage.setItem('clonelp_visitor_id', vId);
-    }
-    setVisitorId(vId);
+    const savedAuth = getChatVisitorAuth();
+    if (savedAuth) {
+      setVisitorAuth(savedAuth);
+      setVisitorId(savedAuth.id);
+      setVisitorName(savedAuth.name);
+      setAuthName(savedAuth.name);
+      setAuthEmail(savedAuth.email);
+      setAuthWhatsapp(savedAuth.whatsapp);
+    } else {
+      let vId = localStorage.getItem('clonelp_visitor_id');
+      if (!vId) {
+        vId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+        localStorage.setItem('clonelp_visitor_id', vId);
+      }
+      setVisitorId(vId);
 
-    const savedName = localStorage.getItem('clonelp_visitor_name');
-    if (savedName) {
-      setVisitorName(savedName);
+      const savedName = localStorage.getItem('clonelp_visitor_name');
+      if (savedName) {
+        setVisitorName(savedName);
+      }
     }
 
     // Check if user is logged in
@@ -146,18 +184,19 @@ export function LandingChatWidget({
     }
   }, [currentUser]);
 
-  // Fetch settings & messages
+  // Fetch settings, messages & participants
   const loadData = useCallback(async () => {
     if (!visitorId && !currentUser?.id) return;
 
     try {
       const effectiveUserId = currentUser?.id || visitorId;
-      const [s, pub, priv, muted, presence] = await Promise.all([
+      const [s, pub, priv, muted, presence, parts] = await Promise.all([
         getChatSettings(),
         getChatMessages({ type: 'public' }),
         getChatMessages({ type: 'private', visitorId, userId: currentUser?.id }),
         isUserMuted(effectiveUserId),
         getAdminPresenceStatus(),
+        getActiveChatParticipants(),
       ]);
 
       const online = Boolean(
@@ -171,6 +210,7 @@ export function LandingChatWidget({
       setPublicMessages(pub);
       setPrivateMessages(priv);
       setIsMuted(muted);
+      setParticipants(parts);
 
       // If user is admin, automatically mark user private messages as read when viewing them
       if (currentUser?.role === 'admin' && adminTargetUserId) {
@@ -180,6 +220,39 @@ export function LandingChatWidget({
       console.error('Failed to load chat data:', err);
     }
   }, [visitorId, currentUser, adminTargetUserId]);
+
+  // Periodic heartbeat presence for current user / visitor
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const pulse = () => {
+      if (currentUser) {
+        recordChatParticipantPresence({
+          id: currentUser.id,
+          name: currentUser.name,
+          role: currentUser.role === 'admin' ? 'admin' : 'partner',
+          email: currentUser.email,
+          whatsapp: currentUser.settings?.whatsapp_number,
+          isOnline: true,
+          lastSeen: new Date().toISOString(),
+        });
+      } else if (visitorAuth) {
+        recordChatParticipantPresence({
+          id: visitorAuth.id,
+          name: visitorAuth.name,
+          role: 'visitor',
+          email: visitorAuth.email,
+          whatsapp: visitorAuth.whatsapp,
+          isOnline: true,
+          lastSeen: new Date().toISOString(),
+        });
+      }
+    };
+
+    pulse();
+    const timer = setInterval(pulse, 20000);
+    return () => clearInterval(timer);
+  }, [isOpen, currentUser, visitorAuth]);
 
   // Initial load and periodic polling
   useEffect(() => {
@@ -270,11 +343,63 @@ export function LandingChatWidget({
     setIsEditingName(false);
   };
 
+  // Handle mandatory visitor identification
+  const handleAuthSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    const cleanName = authName.trim();
+    const cleanEmail = authEmail.trim().toLowerCase();
+    const cleanPhone = authWhatsapp.replace(/\D/g, '');
+
+    if (cleanName.length < 2) {
+      setAuthError('Por favor, informe seu nome completo.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setAuthError('Por favor, informe um e-mail válido.');
+      return;
+    }
+    if (cleanPhone.length < 10) {
+      setAuthError('Por favor, informe um WhatsApp válido com DDD (mínimo 10 dígitos).');
+      return;
+    }
+
+    const saved = saveChatVisitorAuth({
+      name: cleanName,
+      email: cleanEmail,
+      whatsapp: cleanPhone,
+      id: visitorId,
+    });
+
+    setVisitorAuth(saved);
+    setVisitorName(saved.name);
+    setVisitorId(saved.id);
+    setShowAuthModal(false);
+    loadData();
+  };
+
+  const handleClearAuth = () => {
+    clearChatVisitorAuth();
+    setVisitorAuth(null);
+    setVisitorName('Visitante');
+    setAuthName('');
+    setAuthEmail('');
+    setAuthWhatsapp('');
+    loadData();
+  };
+
   // Send message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || sending) return;
     setErrorMsg('');
+
+    // Require visitor identification if outside the panel
+    if (!currentUser && !visitorAuth) {
+      setAuthError('Por favor, identifique-se com Nome, E-mail e WhatsApp para enviar mensagens.');
+      setShowAuthModal(true);
+      return;
+    }
 
     const senderRole =
       currentUser?.role === 'admin'
@@ -283,8 +408,8 @@ export function LandingChatWidget({
         ? 'partner'
         : 'visitor';
 
-    const senderId = currentUser?.id || visitorId;
-    const senderName = currentUser?.name || visitorName || 'Visitante';
+    const senderId = currentUser?.id || visitorAuth?.id || visitorId;
+    const senderName = currentUser?.name || visitorAuth?.name || visitorName || 'Visitante';
 
     setSending(true);
 
@@ -447,31 +572,47 @@ export function LandingChatWidget({
               </div>
             </div>
 
-            {isEmbedded ? (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-[11px] font-semibold text-purple-300">
-                <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
-                <span>Espelho Oficial</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
-                  title="Minimizar chat"
-                >
-                  <Minimize2 className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
-                  title="Fechar"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowParticipantsModal(!showParticipantsModal)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-semibold transition-all ${
+                  showParticipantsModal
+                    ? 'bg-purple-600 text-white border-purple-500 shadow-md'
+                    : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white border-slate-700/60'
+                }`}
+                title="Ver quem está conectado no chat"
+              >
+                <Users className="w-3.5 h-3.5 text-purple-400" />
+                <span>Online ({participants.length})</span>
+              </button>
+
+              {isEmbedded ? (
+                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[10px] font-semibold text-purple-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+                  <span>Painel</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
+                    title="Minimizar chat"
+                  >
+                    <Minimize2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
+                    title="Fechar"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* TAB SELECTOR */}
@@ -509,52 +650,73 @@ export function LandingChatWidget({
           {/* USER NAME BAR / ROLE BADGE */}
           <div className="px-4 py-2 bg-slate-950/80 border-b border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
             <div className="flex items-center gap-1.5 truncate">
-              <span>Falando como:</span>
-              {isEditingName && !currentUser ? (
-                <input
-                  type="text"
-                  autoFocus
-                  defaultValue={visitorName}
-                  onBlur={(e) => handleSaveName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSaveName((e.target as HTMLInputElement).value);
-                  }}
-                  className="px-2 py-0.5 bg-slate-900 border border-slate-700 rounded text-white text-xs outline-none"
-                  maxLength={25}
-                />
+              {currentUser ? (
+                <>
+                  <span>Conectado como:</span>
+                  <span className={`font-bold flex items-center gap-1 ${currentUser.role === 'admin' ? 'text-purple-400' : 'text-blue-400'}`}>
+                    {currentUser.role === 'admin' && <Crown className="w-3 h-3 text-amber-400 inline" />}
+                    <span>{currentUser.name}</span>
+                  </span>
+                </>
+              ) : visitorAuth ? (
+                <>
+                  <UserCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                  <span className="truncate">
+                    <strong className="text-white">{visitorAuth.name}</strong> ({visitorAuth.whatsapp})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthName(visitorAuth.name);
+                      setAuthEmail(visitorAuth.email);
+                      setAuthWhatsapp(visitorAuth.whatsapp);
+                      setAuthError('');
+                      setShowAuthModal(true);
+                    }}
+                    className="text-[10px] text-purple-400 hover:text-white underline ml-1"
+                    title="Editar dados de identificação"
+                  >
+                    Trocar
+                  </button>
+                </>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => !currentUser && setIsEditingName(true)}
-                  className={`font-bold flex items-center gap-1 ${
-                    currentUser?.role === 'admin'
-                      ? 'text-purple-400'
-                      : currentUser?.role === 'user'
-                      ? 'text-blue-400'
-                      : 'text-slate-200 hover:underline'
-                  }`}
-                  title={currentUser ? 'Usuário Autenticado' : 'Clique para alterar seu apelido'}
-                >
-                  {currentUser?.role === 'admin' && <Crown className="w-3 h-3 text-amber-400 inline" />}
-                  <span>{currentUser ? currentUser.name : visitorName}</span>
-                </button>
+                <>
+                  <span className="text-amber-400 font-medium flex items-center gap-1">
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                    <span>Identificação Pendente</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthError('');
+                      setShowAuthModal(true);
+                    }}
+                    className="text-[10px] text-purple-400 hover:text-white font-bold underline ml-1"
+                  >
+                    Identificar-se
+                  </button>
+                </>
               )}
             </div>
 
             <span
-              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${
                 currentUser?.role === 'admin'
                   ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                   : currentUser?.role === 'user'
                   ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                  : 'bg-slate-800 text-slate-300'
+                  : visitorAuth
+                  ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/30'
+                  : 'bg-amber-950/60 text-amber-300 border border-amber-500/30'
               }`}
             >
               {currentUser?.role === 'admin'
                 ? 'Super Admin'
                 : currentUser?.role === 'user'
                 ? 'Parceiro'
-                : 'Visitante'}
+                : visitorAuth
+                ? 'Visitante Verificado'
+                : 'Não Identificado'}
             </span>
           </div>
 
@@ -571,6 +733,226 @@ export function LandingChatWidget({
 
           {/* MESSAGE LIST BODY */}
           <div className="relative flex-1 min-h-0 flex flex-col">
+            {/* OVERLAY: PARTICIPANTES CONECTADOS */}
+            {showParticipantsModal && (
+              <div className="absolute inset-0 z-30 bg-slate-950/95 backdrop-blur-md flex flex-col p-4 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-purple-400" />
+                    <div>
+                      <h4 className="text-xs font-bold text-white">
+                        Conectados no Chat ({participants.length})
+                      </h4>
+                      <p className="text-[10px] text-slate-400">Tempo real nos últimos minutos</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowParticipantsModal(false)}
+                    className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto py-3 space-y-2">
+                  {participants.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 text-xs">
+                      Nenhum participante conectado no momento.
+                    </div>
+                  ) : (
+                    participants.map((p) => {
+                      const isMe =
+                        (currentUser?.id && p.id === currentUser.id) ||
+                        (visitorAuth?.id && p.id === visitorAuth.id);
+                      const isAdmin = p.role === 'admin';
+                      const isPartner = p.role === 'partner';
+
+                      return (
+                        <div
+                          key={p.id}
+                          className={`p-2.5 rounded-2xl border flex items-center justify-between gap-2 ${
+                            isMe
+                              ? 'bg-purple-950/40 border-purple-500/40'
+                              : 'bg-slate-900/80 border-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="relative flex h-2.5 w-2.5 shrink-0">
+                              {p.isOnline && (
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              )}
+                              <span
+                                className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                                  p.isOnline ? 'bg-emerald-400' : 'bg-slate-500'
+                                }`}
+                              ></span>
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-bold text-white truncate">
+                                  {p.name} {isMe && '(Você)'}
+                                </span>
+                                {isAdmin && (
+                                  <span className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-extrabold border border-purple-500/30 text-[9px]">
+                                    ADMIN
+                                  </span>
+                                )}
+                                {isPartner && (
+                                  <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-bold border border-blue-500/30 text-[9px]">
+                                    PARCEIRO
+                                  </span>
+                                )}
+                                {p.role === 'visitor' && (
+                                  <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-medium border border-slate-700 text-[9px]">
+                                    VISITANTE
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-slate-400 block truncate">
+                                {p.isOnline ? '🟢 Online agora' : '⚪ Offline'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Actions if Super Admin is viewing */}
+                          {currentUser?.role === 'admin' && p.role !== 'admin' && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              {p.whatsapp && (
+                                <a
+                                  href={`https://wa.me/${p.whatsapp.replace(/\D/g, '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-400 text-xs"
+                                  title="Chamar no WhatsApp"
+                                >
+                                  <Phone className="w-3.5 h-3.5" />
+                                </a>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleOpenAdminDM(p.id, p.name);
+                                  setShowParticipantsModal(false);
+                                }}
+                                className="p-1.5 rounded-lg bg-purple-950/60 hover:bg-purple-900 border border-purple-500/30 text-purple-300 text-xs"
+                                title="Chamar no Privado"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* OVERLAY: MODAL DE IDENTIFICAÇÃO DO VISITANTE */}
+            {showAuthModal && (
+              <div className="absolute inset-0 z-30 bg-slate-950/95 backdrop-blur-md flex flex-col p-5 justify-center animate-in fade-in duration-150">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
+                      <UserCheck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-white">Identifique-se para Conversar</h4>
+                      <p className="text-[10px] text-slate-400">Rápido, seguro e liberado imediatamente</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAuthModal(false)}
+                    className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleAuthSubmit} className="space-y-3.5">
+                  {authError && (
+                    <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
+                      {authError}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      Seu Nome Completo *
+                    </label>
+                    <div className="relative">
+                      <User className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-3" />
+                      <input
+                        type="text"
+                        required
+                        value={authName}
+                        onChange={(e) => setAuthName(e.target.value)}
+                        placeholder="Ex: Carlos Silva"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-purple-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      Seu E-mail *
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-3" />
+                      <input
+                        type="email"
+                        required
+                        value={authEmail}
+                        onChange={(e) => setAuthEmail(e.target.value)}
+                        placeholder="seuemail@exemplo.com"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-purple-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      WhatsApp com DDD *
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-3" />
+                      <input
+                        type="tel"
+                        required
+                        value={authWhatsapp}
+                        onChange={(e) => setAuthWhatsapp(e.target.value)}
+                        placeholder="(11) 99999-9999"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-purple-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center gap-2">
+                    <button
+                      type="submit"
+                      className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>Confirmar e Entrar no Chat</span>
+                    </button>
+                    {visitorAuth && (
+                      <button
+                        type="button"
+                        onClick={handleClearAuth}
+                        className="px-3 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-semibold"
+                        title="Desconectar dados"
+                      >
+                        <LogOut className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+            )}
+
             <div
               ref={chatContainerRef}
               onScroll={handleContainerScroll}
@@ -764,6 +1146,27 @@ export function LandingChatWidget({
                 <span>
                   Você foi colocado em modo somente leitura pela moderação e não pode enviar novas mensagens.
                 </span>
+              </div>
+            ) : !currentUser && !visitorAuth ? (
+              <div className="p-3.5 bg-gradient-to-r from-purple-950/40 to-slate-950 border border-purple-800/40 rounded-2xl text-center space-y-2.5 shadow-lg shadow-purple-950/30">
+                <div className="flex items-center justify-center gap-1.5 text-purple-300 text-xs font-bold">
+                  <ShieldAlert className="w-4 h-4 text-purple-400" />
+                  <span>Identificação Obrigatória para Participar</span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-snug">
+                  Para conversar no bate-papo geral ou enviar dúvidas privadas ao Super Admin, identifique-se com Nome, E-mail e WhatsApp.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthError('');
+                    setShowAuthModal(true);
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-purple-950/40 transition-all active:scale-95"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  <span>Identificar-me Agora</span>
+                </button>
               </div>
             ) : activeTab === 'public' && !isAdminOnline && currentUser?.role !== 'admin' ? (
               <div className="text-center py-2 text-xs text-slate-400">

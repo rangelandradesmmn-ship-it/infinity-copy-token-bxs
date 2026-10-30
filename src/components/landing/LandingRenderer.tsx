@@ -218,7 +218,6 @@ export function LandingRenderer({
       {/* Online Chat Widget & Direct Support */}
       <LandingChatWidget
         customSettings={content.chatSettings}
-        currentUser={user}
       />
     </div>
   );

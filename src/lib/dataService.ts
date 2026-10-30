@@ -1455,6 +1455,7 @@ export function saveChatVisitorAuth(data: {
 export function clearChatVisitorAuth(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(STORAGE_KEYS.CHAT_VISITOR_AUTH);
+    localStorage.removeItem('clonelp_visitor_name');
   }
 }
 

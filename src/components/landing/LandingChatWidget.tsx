@@ -76,14 +76,16 @@ export function LandingChatWidget({
   defaultOpen,
 }: LandingChatWidgetProps) {
   const isEmbedded = mode === 'embedded';
+  const isOutsidePanel = !isEmbedded;
+
   const [isOpen, setIsOpen] = useState(defaultOpen !== undefined ? defaultOpen : isEmbedded);
   const [activeTab, setActiveTab] = useState<'public' | 'private'>('public');
 
   // Visitor identification
   const [visitorId, setVisitorId] = useState<string>('');
-  const [visitorName, setVisitorName] = useState<string>(initialUser?.name || 'Visitante');
+  const [visitorName, setVisitorName] = useState<string>(isEmbedded && initialUser ? initialUser.name : 'Visitante');
   const [isEditingName, setIsEditingName] = useState(false);
-  const [currentUser, setCurrentUser] = useState<UserWithSettings | null>(initialUser || null);
+  const [currentUser, setCurrentUser] = useState<UserWithSettings | null>(isEmbedded ? (initialUser || null) : null);
 
   // Mandatory identification for visitors outside the panel
   const [visitorAuth, setVisitorAuth] = useState<ChatVisitorAuth | null>(null);
@@ -92,6 +94,8 @@ export function LandingChatWidget({
   const [authEmail, setAuthEmail] = useState('');
   const [authWhatsapp, setAuthWhatsapp] = useState('');
   const [authError, setAuthError] = useState('');
+
+  const isIdentified = isEmbedded ? Boolean(currentUser) : Boolean(visitorAuth);
 
   // Online Participants
   const [participants, setParticipants] = useState<ChatParticipant[]>([]);
@@ -120,47 +124,54 @@ export function LandingChatWidget({
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const savedAuth = getChatVisitorAuth();
-    if (savedAuth) {
-      setVisitorAuth(savedAuth);
-      setVisitorId(savedAuth.id);
-      setVisitorName(savedAuth.name);
-      setAuthName(savedAuth.name);
-      setAuthEmail(savedAuth.email);
-      setAuthWhatsapp(savedAuth.whatsapp);
-    } else {
-      let vId = localStorage.getItem('clonelp_visitor_id');
-      if (!vId) {
-        vId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-        localStorage.setItem('clonelp_visitor_id', vId);
+    if (isOutsidePanel) {
+      // OUTSIDE PANEL (/ or /p/[slug]): Strictly enforce visitor authentication
+      const savedAuth = getChatVisitorAuth();
+      if (savedAuth) {
+        setVisitorAuth(savedAuth);
+        setVisitorId(savedAuth.id);
+        setVisitorName(savedAuth.name);
+        setAuthName(savedAuth.name);
+        setAuthEmail(savedAuth.email);
+        setAuthWhatsapp(savedAuth.whatsapp);
+      } else {
+        setVisitorAuth(null);
+        let vId = localStorage.getItem('clonelp_visitor_id');
+        if (!vId) {
+          vId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+          localStorage.setItem('clonelp_visitor_id', vId);
+        }
+        setVisitorId(vId);
+        setVisitorName('Visitante');
       }
-      setVisitorId(vId);
-
-      const savedName = localStorage.getItem('clonelp_visitor_name');
-      if (savedName) {
-        setVisitorName(savedName);
+      // Never use admin/user session on public landing page chat
+      setCurrentUser(null);
+    } else {
+      // INSIDE PANEL (/painel): Auto-authenticate logged-in partner/admin
+      if (initialUser) {
+        setCurrentUser(initialUser);
+        setVisitorName(initialUser.name);
+      } else {
+        getCurrentSessionUser().then((user) => {
+          if (user) {
+            setCurrentUser(user);
+            setVisitorName(user.name);
+            if (user.role === 'admin') {
+              recordAdminHeartbeat(user.id, true);
+            }
+          }
+        });
       }
     }
+  }, [isOutsidePanel, initialUser]);
 
-    // Check if user is logged in
-    getCurrentSessionUser().then((user) => {
-      if (user) {
-        setCurrentUser(user);
-        setVisitorName(user.name);
-        if (user.role === 'admin') {
-          recordAdminHeartbeat(user.id, true);
-        }
-      }
-    });
-  }, []);
-
-  // Sync initialUser if updated externally
+  // Sync initialUser if updated externally in embedded mode
   useEffect(() => {
-    if (initialUser) {
+    if (isEmbedded && initialUser) {
       setCurrentUser(initialUser);
       setVisitorName(initialUser.name);
     }
-  }, [initialUser]);
+  }, [isEmbedded, initialUser]);
 
   // Recurring heartbeat if admin is browsing this page
   useEffect(() => {
@@ -186,21 +197,26 @@ export function LandingChatWidget({
 
   // Fetch settings, messages & participants
   const loadData = useCallback(async () => {
-    if (!visitorId && !currentUser?.id) return;
+    const activeVisitorId = visitorAuth?.id || visitorId;
+    if (!activeVisitorId && !currentUser?.id) return;
 
     try {
-      const effectiveUserId = currentUser?.id || visitorId;
+      const effectiveUserId = isEmbedded ? (currentUser?.id || activeVisitorId) : activeVisitorId;
       const [s, pub, priv, muted, presence, parts] = await Promise.all([
         getChatSettings(),
         getChatMessages({ type: 'public' }),
-        getChatMessages({ type: 'private', visitorId, userId: currentUser?.id }),
+        getChatMessages({
+          type: 'private',
+          visitorId: activeVisitorId,
+          userId: isEmbedded ? currentUser?.id : undefined,
+        }),
         isUserMuted(effectiveUserId),
         getAdminPresenceStatus(),
         getActiveChatParticipants(),
       ]);
 
       const online = Boolean(
-        currentUser?.role === 'admin' || presence.isOnline || s.adminOnline
+        (isEmbedded && currentUser?.role === 'admin') || presence.isOnline || s.adminOnline
       );
 
       setSettings({
@@ -212,14 +228,14 @@ export function LandingChatWidget({
       setIsMuted(muted);
       setParticipants(parts);
 
-      // If user is admin, automatically mark user private messages as read when viewing them
-      if (currentUser?.role === 'admin' && adminTargetUserId) {
+      // If user is admin in embedded mode, automatically mark user private messages as read when viewing them
+      if (isEmbedded && currentUser?.role === 'admin' && adminTargetUserId) {
         await markPrivateMessagesAsRead(adminTargetUserId, currentUser.id);
       }
     } catch (err) {
       console.error('Failed to load chat data:', err);
     }
-  }, [visitorId, currentUser, adminTargetUserId]);
+  }, [visitorId, visitorAuth, currentUser, adminTargetUserId, isEmbedded]);
 
   // Periodic heartbeat presence for current user / visitor
   useEffect(() => {
@@ -395,21 +411,23 @@ export function LandingChatWidget({
     setErrorMsg('');
 
     // Require visitor identification if outside the panel
-    if (!currentUser && !visitorAuth) {
+    if (isOutsidePanel && !visitorAuth) {
       setAuthError('Por favor, identifique-se com Nome, E-mail e WhatsApp para enviar mensagens.');
       setShowAuthModal(true);
       return;
     }
 
-    const senderRole =
-      currentUser?.role === 'admin'
-        ? 'admin'
-        : currentUser?.role === 'user'
-        ? 'partner'
-        : 'visitor';
+    const senderRole = isEmbedded
+      ? (currentUser?.role === 'admin' ? 'admin' : 'partner')
+      : 'visitor';
 
-    const senderId = currentUser?.id || visitorAuth?.id || visitorId;
-    const senderName = currentUser?.name || visitorAuth?.name || visitorName || 'Visitante';
+    const senderId = isEmbedded
+      ? (currentUser?.id || 'partner')
+      : (visitorAuth?.id || visitorId);
+
+    const senderName = isEmbedded
+      ? (currentUser?.name || 'Parceiro')
+      : (visitorAuth?.name || 'Visitante');
 
     setSending(true);
 
@@ -647,23 +665,17 @@ export function LandingChatWidget({
             </button>
           </div>
 
-          {/* USER NAME BAR / ROLE BADGE */}
-          <div className="px-4 py-2 bg-slate-950/80 border-b border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
-            <div className="flex items-center gap-1.5 truncate">
-              {currentUser ? (
-                <>
-                  <span>Conectado como:</span>
-                  <span className={`font-bold flex items-center gap-1 ${currentUser.role === 'admin' ? 'text-purple-400' : 'text-blue-400'}`}>
-                    {currentUser.role === 'admin' && <Crown className="w-3 h-3 text-amber-400 inline" />}
-                    <span>{currentUser.name}</span>
+          {/* USER NAME BAR / ROLE BADGE / VISITOR PILL */}
+          {isOutsidePanel ? (
+            visitorAuth ? (
+              <div className="px-4 py-2 bg-gradient-to-r from-purple-950/70 via-slate-900 to-indigo-950/70 border-b border-purple-800/40 flex items-center justify-between text-xs text-purple-200 shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <UserCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="truncate text-xs">
+                    Logado como: <strong className="text-white font-bold">{visitorAuth.name}</strong> ({visitorAuth.whatsapp})
                   </span>
-                </>
-              ) : visitorAuth ? (
-                <>
-                  <UserCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                  <span className="truncate">
-                    <strong className="text-white">{visitorAuth.name}</strong> ({visitorAuth.whatsapp})
-                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -673,52 +685,37 @@ export function LandingChatWidget({
                       setAuthError('');
                       setShowAuthModal(true);
                     }}
-                    className="text-[10px] text-purple-400 hover:text-white underline ml-1"
-                    title="Editar dados de identificação"
+                    className="text-xs text-purple-300 hover:text-white font-semibold underline transition-colors"
+                    title="Trocar dados de identificação"
                   >
                     Trocar
                   </button>
-                </>
-              ) : (
-                <>
-                  <span className="text-amber-400 font-medium flex items-center gap-1">
-                    <ShieldAlert className="w-3.5 h-3.5" />
-                    <span>Identificação Pendente</span>
-                  </span>
+                  <span className="text-purple-600 font-bold">|</span>
                   <button
                     type="button"
-                    onClick={() => {
-                      setAuthError('');
-                      setShowAuthModal(true);
-                    }}
-                    className="text-[10px] text-purple-400 hover:text-white font-bold underline ml-1"
+                    onClick={handleClearAuth}
+                    className="text-xs text-red-400 hover:text-red-300 font-semibold underline transition-colors"
+                    title="Desconectar do chat"
                   >
-                    Identificar-se
+                    Desconectar
                   </button>
-                </>
-              )}
+                </div>
+              </div>
+            ) : null
+          ) : (
+            <div className="px-4 py-2 bg-slate-950/80 border-b border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
+              <div className="flex items-center gap-1.5 truncate">
+                <span>Painel do Parceiro:</span>
+                <span className="font-bold text-blue-400 flex items-center gap-1">
+                  {currentUser?.role === 'admin' && <Crown className="w-3 h-3 text-amber-400 inline" />}
+                  <span>{currentUser?.name || 'Parceiro'}</span>
+                </span>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                {currentUser?.role === 'admin' ? 'Super Admin' : 'Parceiro'}
+              </span>
             </div>
-
-            <span
-              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${
-                currentUser?.role === 'admin'
-                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                  : currentUser?.role === 'user'
-                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                  : visitorAuth
-                  ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/30'
-                  : 'bg-amber-950/60 text-amber-300 border border-amber-500/30'
-              }`}
-            >
-              {currentUser?.role === 'admin'
-                ? 'Super Admin'
-                : currentUser?.role === 'user'
-                ? 'Parceiro'
-                : visitorAuth
-                ? 'Visitante Verificado'
-                : 'Não Identificado'}
-            </span>
-          </div>
+          )}
 
           {/* PINNED ANNOUNCEMENT (IF ANY) */}
           {pinnedMsg && activeTab === 'public' && (
@@ -1147,14 +1144,14 @@ export function LandingChatWidget({
                   Você foi colocado em modo somente leitura pela moderação e não pode enviar novas mensagens.
                 </span>
               </div>
-            ) : !currentUser && !visitorAuth ? (
-              <div className="p-3.5 bg-gradient-to-r from-purple-950/40 to-slate-950 border border-purple-800/40 rounded-2xl text-center space-y-2.5 shadow-lg shadow-purple-950/30">
-                <div className="flex items-center justify-center gap-1.5 text-purple-300 text-xs font-bold">
-                  <ShieldAlert className="w-4 h-4 text-purple-400" />
+            ) : isOutsidePanel && !visitorAuth ? (
+              <div className="p-4 bg-gradient-to-r from-purple-950/80 via-slate-900 to-indigo-950/80 border border-purple-500/40 rounded-2xl text-center space-y-2.5 shadow-xl shadow-purple-950/50">
+                <div className="flex items-center justify-center gap-2 text-purple-300 text-xs font-extrabold uppercase tracking-wide">
+                  <ShieldAlert className="w-4 h-4 text-purple-400 animate-pulse" />
                   <span>Identificação Obrigatória para Participar</span>
                 </div>
-                <p className="text-[11px] text-slate-300 leading-snug">
-                  Para conversar no bate-papo geral ou enviar dúvidas privadas ao Super Admin, identifique-se com Nome, E-mail e WhatsApp.
+                <p className="text-xs text-slate-300 leading-relaxed max-w-sm mx-auto">
+                  Para conversar no bate-papo coletivo ou enviar dúvidas privadas ao Administrador, identifique-se com seu Nome, E-mail e WhatsApp.
                 </p>
                 <button
                   type="button"
@@ -1162,13 +1159,13 @@ export function LandingChatWidget({
                     setAuthError('');
                     setShowAuthModal(true);
                   }}
-                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-purple-950/40 transition-all active:scale-95"
+                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-purple-950/60 transition-all active:scale-95 hover:scale-[1.01]"
                 >
                   <UserCheck className="w-4 h-4" />
                   <span>Identificar-me Agora</span>
                 </button>
               </div>
-            ) : activeTab === 'public' && !isAdminOnline && currentUser?.role !== 'admin' ? (
+            ) : activeTab === 'public' && !isAdminOnline && (isEmbedded ? currentUser?.role !== 'admin' : true) ? (
               <div className="text-center py-2 text-xs text-slate-400">
                 <span>Bate-papo geral bloqueado. Alterne para a aba </span>
                 <button

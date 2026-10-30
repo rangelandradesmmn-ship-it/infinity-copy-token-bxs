@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { logoutUser } from '@/lib/dataService';
+import { logoutUser, recordAdminHeartbeat, getCurrentSessionUserId } from '@/lib/dataService';
 import {
   LayoutDashboard,
   Palette,
@@ -19,6 +19,21 @@ import {
 export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+
+  // Keep admin presence alive across any admin page
+  React.useEffect(() => {
+    const uId = getCurrentSessionUserId();
+    if (uId) {
+      recordAdminHeartbeat(uId, true);
+    }
+    const hb = setInterval(() => {
+      const currentId = getCurrentSessionUserId();
+      if (currentId) {
+        recordAdminHeartbeat(currentId, true);
+      }
+    }, 20000);
+    return () => clearInterval(hb);
+  }, []);
 
   const handleLogout = () => {
     logoutUser();

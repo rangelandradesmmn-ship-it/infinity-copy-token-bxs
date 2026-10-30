@@ -1366,10 +1366,15 @@ export async function getAdminPresenceStatus(): Promise<{ isOnline: boolean; man
 
   if (presence && presence.isOnline) {
     const diffMs = Date.now() - new Date(presence.lastSeen).getTime();
-    // Considered online if heartbeat received in last 2.5 minutes
-    if (diffMs < 150000) {
+    // Considered online if heartbeat received in last 5 minutes
+    if (diffMs < 300000) {
       return { isOnline: true, manualOverride: 'auto', lastSeen: presence.lastSeen };
     }
+  }
+
+  // Check Supabase Cloud presence from settings
+  if (settings.adminOnline) {
+    return { isOnline: true, manualOverride: 'auto', lastSeen: new Date().toISOString() };
   }
 
   return { isOnline: false, manualOverride: 'auto', lastSeen: '' };
@@ -1389,12 +1394,24 @@ export async function getChatSettings(): Promise<ChatSettings> {
         .maybeSingle();
 
       if (data) {
+        const diffMs = data.admin_last_seen
+          ? Date.now() - new Date(data.admin_last_seen).getTime()
+          : Infinity;
+        const isRecent = diffMs < 300000; // 5 min
+
+        const isOnlineInDb =
+          data.manual_override === 'online'
+            ? true
+            : data.manual_override === 'offline'
+            ? false
+            : Boolean(data.admin_online && (isRecent || !data.admin_last_seen));
+
         settings = {
           enabled: data.is_chat_enabled,
           title: 'Chat da Comunidade & Suporte',
           subtitle: 'Bate-papo ao vivo entre membros e atendimento com a moderação.',
           welcomeMessage: data.welcome_message || initialChatSettings.welcomeMessage,
-          adminOnline: data.admin_online,
+          adminOnline: isOnlineInDb,
           manualOverride: (data.manual_override as 'auto' | 'online' | 'offline') || 'auto',
           slowModeSeconds: data.slow_mode_seconds || 0,
           pinnedMessage: data.pinned_message || '',
@@ -1416,7 +1433,7 @@ export async function getChatSettings(): Promise<ChatSettings> {
       dynamicAdminOnline = true;
     } else {
       const presence = getLocalItem<{ isOnline: boolean; lastSeen: string } | null>(STORAGE_KEYS.ADMIN_PRESENCE, null);
-      if (presence?.isOnline && Date.now() - new Date(presence.lastSeen).getTime() < 150000) {
+      if (presence?.isOnline && Date.now() - new Date(presence.lastSeen).getTime() < 300000) {
         dynamicAdminOnline = true;
       } else if (settings.adminOnline) {
         dynamicAdminOnline = true;

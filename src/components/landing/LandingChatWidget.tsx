@@ -36,6 +36,7 @@ import {
   getAdminPresenceStatus,
   getCurrentSessionUser,
   markPrivateMessagesAsRead,
+  recordAdminHeartbeat,
 } from '@/lib/dataService';
 
 interface LandingChatWidgetProps {
@@ -98,9 +99,23 @@ export function LandingChatWidget({
       if (user) {
         setCurrentUser(user);
         setVisitorName(user.name);
+        if (user.role === 'admin') {
+          recordAdminHeartbeat(user.id, true);
+        }
       }
     });
   }, []);
+
+  // Recurring heartbeat if admin is browsing this page
+  useEffect(() => {
+    if (currentUser?.role === 'admin') {
+      recordAdminHeartbeat(currentUser.id, true);
+      const hb = setInterval(() => {
+        recordAdminHeartbeat(currentUser.id, true);
+      }, 20000);
+      return () => clearInterval(hb);
+    }
+  }, [currentUser]);
 
   // Fetch settings & messages
   const loadData = useCallback(async () => {
@@ -116,9 +131,13 @@ export function LandingChatWidget({
         getAdminPresenceStatus(),
       ]);
 
+      const online = Boolean(
+        currentUser?.role === 'admin' || presence.isOnline || s.adminOnline
+      );
+
       setSettings({
         ...s,
-        adminOnline: presence.isOnline,
+        adminOnline: online,
       });
       setPublicMessages(pub);
       setPrivateMessages(priv);

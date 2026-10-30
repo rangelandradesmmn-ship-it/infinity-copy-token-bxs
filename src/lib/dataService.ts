@@ -326,6 +326,52 @@ export async function updateUserPassword(
 // Landing Page Content (Published & Drafts)
 // -------------------------------------------------------------
 
+export function normalizeLandingPageContent(raw: unknown): LandingPageContent {
+  if (!raw || typeof raw !== 'object') {
+    return initialLandingPageContent;
+  }
+  const c = raw as Record<string, any>;
+  return {
+    ...initialLandingPageContent,
+    ...c,
+    brand: { ...initialLandingPageContent.brand, ...(c.brand || {}) },
+    hero: { ...initialLandingPageContent.hero, ...(c.hero || {}) },
+    videosSection: {
+      ...initialLandingPageContent.videosSection,
+      ...(c.videosSection || {}),
+      videos: Array.isArray(c.videosSection?.videos) ? c.videosSection.videos : initialLandingPageContent.videosSection.videos,
+    },
+    benefitsSection: {
+      ...initialLandingPageContent.benefitsSection,
+      ...(c.benefitsSection || {}),
+      items: Array.isArray(c.benefitsSection?.items) ? c.benefitsSection.items : initialLandingPageContent.benefitsSection.items,
+    },
+    consultantSection: { ...initialLandingPageContent.consultantSection, ...(c.consultantSection || {}) },
+    testimonialsSection: {
+      ...initialLandingPageContent.testimonialsSection,
+      ...(c.testimonialsSection || {}),
+      items: Array.isArray(c.testimonialsSection?.items) ? c.testimonialsSection.items : initialLandingPageContent.testimonialsSection.items,
+    },
+    faqSection: {
+      ...initialLandingPageContent.faqSection,
+      ...(c.faqSection || {}),
+      items: Array.isArray(c.faqSection?.items) ? c.faqSection.items : initialLandingPageContent.faqSection.items,
+    },
+    tokenSection: c.tokenSection
+      ? { ...initialLandingPageContent.tokenSection!, ...c.tokenSection }
+      : initialLandingPageContent.tokenSection,
+    ctaBanner: { ...initialLandingPageContent.ctaBanner, ...(c.ctaBanner || {}) },
+    footer: { ...initialLandingPageContent.footer, ...(c.footer || {}) },
+    defaultSettings: { ...initialLandingPageContent.defaultSettings, ...(c.defaultSettings || {}) },
+    officialChannels: c.officialChannels
+      ? { ...initialLandingPageContent.officialChannels!, ...c.officialChannels }
+      : initialLandingPageContent.officialChannels,
+    chatSettings: c.chatSettings
+      ? { ...initialLandingPageContent.chatSettings!, ...c.chatSettings }
+      : initialLandingPageContent.chatSettings,
+  } as LandingPageContent;
+}
+
 export async function getPublishedLandingPage(): Promise<{
   content: LandingPageContent;
   versionNumber: number;
@@ -340,9 +386,9 @@ export async function getPublishedLandingPage(): Promise<{
       .limit(1)
       .single();
 
-    if (!error && data) {
+    if (!error && data && data.content_json) {
       return {
-        content: data.content_json as LandingPageContent,
+        content: normalizeLandingPageContent(data.content_json),
         versionNumber: data.version_number,
         publishedAt: data.published_at,
       };
@@ -358,7 +404,7 @@ export async function getPublishedLandingPage(): Promise<{
 
   if (published) {
     return {
-      content: published.content_json,
+      content: normalizeLandingPageContent(published.content_json),
       versionNumber: published.version_number,
       publishedAt: published.published_at,
     };
@@ -385,9 +431,9 @@ export async function getDraftLandingPage(): Promise<{
       .limit(1)
       .single();
 
-    if (data) {
+    if (data && data.content_json) {
       return {
-        content: data.content_json as LandingPageContent,
+        content: normalizeLandingPageContent(data.content_json),
         versionId: data.id,
         hasDraft: true,
       };
@@ -399,7 +445,7 @@ export async function getDraftLandingPage(): Promise<{
   const versions = getLocalItem<LandingPageVersion[]>(STORAGE_KEYS.VERSIONS, seedVersions);
   const draft = versions.find((v) => v.status === 'draft');
   if (draft) {
-    return { content: draft.content_json, versionId: draft.id, hasDraft: true };
+    return { content: normalizeLandingPageContent(draft.content_json), versionId: draft.id, hasDraft: true };
   }
 
   // Fallback to published
@@ -586,12 +632,19 @@ export async function getLandingPageVersions(): Promise<LandingPageVersion[]> {
       .from('landing_page_versions')
       .select('*')
       .order('version_number', { ascending: false });
-    if (data) return data as LandingPageVersion[];
+    if (data) {
+      return (data as LandingPageVersion[]).map((v) => ({
+        ...v,
+        content_json: normalizeLandingPageContent(v.content_json),
+      }));
+    }
   }
 
   initLocalDatabase();
   const versions = getLocalItem<LandingPageVersion[]>(STORAGE_KEYS.VERSIONS, seedVersions);
-  return versions.sort((a, b) => b.version_number - a.version_number);
+  return versions
+    .map((v) => ({ ...v, content_json: normalizeLandingPageContent(v.content_json) }))
+    .sort((a, b) => b.version_number - a.version_number);
 }
 
 export async function restoreLandingPageVersion(

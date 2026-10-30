@@ -14,6 +14,7 @@ import {
 import { UserMetricsCards } from '@/components/user/UserMetricsCards';
 import { PersonalizationForm } from '@/components/user/PersonalizationForm';
 import { EasyShareModal } from '@/components/user/EasyShareModal';
+import { LandingChatWidget } from '@/components/landing/LandingChatWidget';
 import {
   Copy,
   Check,
@@ -129,6 +130,16 @@ export default function UserPanelPage() {
               <span className="font-semibold text-white">{currentUser.name}</span>
               <span className="text-slate-500">({currentUser.email})</span>
             </div>
+
+            {/* Quick jump to Mirrored Chat */}
+            <a
+              href="#chat"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-300 bg-purple-950/60 border border-purple-800/80 hover:bg-purple-900/60 transition-colors"
+              title="Ir para o Bate-Papo & Chat"
+            >
+              <MessageCircle className="w-3.5 h-3.5 text-purple-400" />
+              <span className="hidden sm:inline">Bate-Papo & Chat</span>
+            </a>
 
             {currentUser.role === 'admin' && (
               <Link
@@ -288,6 +299,27 @@ export default function UserPanelPage() {
             <UserMetricsCards metrics={metrics} />
           </section>
         )}
+
+        {/* Espelhamento do Bate-Papo & Chat ao Vivo */}
+        <section id="chat" className="space-y-4 scroll-mt-20">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <MessageCircle className="w-5 h-5 text-purple-400" />
+                <span>Bate-Papo Oficial da Comunidade & Suporte</span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                Interaja ao vivo com os membros no bate-papo geral ou tire dúvidas no privado do Super Admin com acompanhamento de leitura.
+              </p>
+            </div>
+            <span className="self-start sm:self-auto text-xs text-purple-300 font-semibold bg-purple-500/10 border border-purple-500/20 px-3 py-1 rounded-full flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+              Espelhado com a Landing Page
+            </span>
+          </div>
+
+          <LandingChatWidget currentUser={currentUser} mode="embedded" />
+        </section>
 
         {/* Allowed Personalization Form (Requirement 5.3) */}
         <section>

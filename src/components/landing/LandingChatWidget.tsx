@@ -48,18 +48,23 @@ interface LandingChatWidgetProps {
     pinnedMessage?: string;
   };
   currentUser?: UserWithSettings;
+  mode?: 'floating' | 'embedded';
+  defaultOpen?: boolean;
 }
 
 export function LandingChatWidget({
   customSettings,
   currentUser: initialUser,
+  mode = 'floating',
+  defaultOpen,
 }: LandingChatWidgetProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const isEmbedded = mode === 'embedded';
+  const [isOpen, setIsOpen] = useState(defaultOpen !== undefined ? defaultOpen : isEmbedded);
   const [activeTab, setActiveTab] = useState<'public' | 'private'>('public');
 
   // Visitor identification
   const [visitorId, setVisitorId] = useState<string>('');
-  const [visitorName, setVisitorName] = useState<string>('Visitante');
+  const [visitorName, setVisitorName] = useState<string>(initialUser?.name || 'Visitante');
   const [isEditingName, setIsEditingName] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserWithSettings | null>(initialUser || null);
 
@@ -105,6 +110,14 @@ export function LandingChatWidget({
       }
     });
   }, []);
+
+  // Sync initialUser if updated externally
+  useEffect(() => {
+    if (initialUser) {
+      setCurrentUser(initialUser);
+      setVisitorName(initialUser.name);
+    }
+  }, [initialUser]);
 
   // Recurring heartbeat if admin is browsing this page
   useEffect(() => {
@@ -281,9 +294,9 @@ export function LandingChatWidget({
 
   return (
     <>
-      {/* FLOATING TRIGGER BUTTON */}
-      <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end">
-        {!isOpen && (
+      {/* FLOATING TRIGGER BUTTON (ONLY IN FLOATING MODE) */}
+      {!isEmbedded && !isOpen && (
+        <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end">
           <button
             type="button"
             onClick={() => setIsOpen(true)}
@@ -323,12 +336,18 @@ export function LandingChatWidget({
               </span>
             )}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* CHAT WINDOW MODAL / DRAWER */}
+      {/* CHAT WINDOW (FLOATING OR EMBEDDED) */}
       {isOpen && (
-        <div className="fixed bottom-5 right-5 z-50 w-[94vw] sm:w-[410px] h-[580px] max-h-[85vh] bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-200">
+        <div
+          className={
+            isEmbedded
+              ? 'w-full h-[620px] sm:h-[660px] bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden'
+              : 'fixed bottom-5 right-5 z-50 w-[94vw] sm:w-[410px] h-[580px] max-h-[85vh] bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-200'
+          }
+        >
           {/* HEADER */}
           <div className="p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -356,24 +375,31 @@ export function LandingChatWidget({
               </div>
             </div>
 
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
-                title="Minimizar chat"
-              >
-                <Minimize2 className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
-                title="Fechar"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+            {isEmbedded ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-[11px] font-semibold text-purple-300">
+                <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                <span>Espelho Oficial</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
+                  title="Minimizar chat"
+                >
+                  <Minimize2 className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
+                  title="Fechar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* TAB SELECTOR */}

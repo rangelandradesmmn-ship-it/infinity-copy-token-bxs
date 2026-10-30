@@ -12,7 +12,7 @@ import {
   FaqItem,
   AspectRatio,
 } from '@/types';
-import { saveLandingPageDraft, publishLandingPage } from '@/lib/dataService';
+import { saveLandingPageDraft, publishLandingPage, normalizeLandingPageContent } from '@/lib/dataService';
 import { initialLandingPageContent } from '@/data/defaultLandingPage';
 import { LivePreviewModal } from './LivePreviewModal';
 import { VersionHistoryModal } from './VersionHistoryModal';
@@ -69,7 +69,13 @@ export function MasterEditor({
   testUsers,
   onPublished,
 }: MasterEditorProps) {
-  const [content, setContent] = useState<LandingPageContent>(initialContent);
+  const [content, setContent] = useState<LandingPageContent>(() => normalizeLandingPageContent(initialContent));
+
+  React.useEffect(() => {
+    if (initialContent) {
+      setContent(normalizeLandingPageContent(initialContent));
+    }
+  }, [initialContent]);
   const [activeTab, setActiveTab] = useState<
     'brand' | 'hero' | 'videos' | 'benefits' | 'consultant' | 'testimonials' | 'faq' | 'token' | 'cta' | 'defaults' | 'channels'
   >('brand');

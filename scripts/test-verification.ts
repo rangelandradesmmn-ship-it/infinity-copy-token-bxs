@@ -532,6 +532,37 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
     '66. Super Admin envia mensagem direta no privado do usuário com sucesso'
   );
 
+  // 12. Parceiro autenticado no painel envia mensagem com role 'partner'
+  const partnerPanelMsg = await sendChatMessage({
+    sender_id: 'user-jorge-0001',
+    sender_name: 'Jorge Carvalho',
+    sender_role: 'partner',
+    content: 'Mensagem enviada diretamente de dentro do Painel do Parceiro!',
+    type: 'public',
+  });
+  assert(
+    partnerPanelMsg.success === true &&
+    partnerPanelMsg.message?.sender_role === 'partner' &&
+    partnerPanelMsg.message?.sender_id === 'user-jorge-0001',
+    '67. Parceiro autenticado interage e envia mensagens diretamente pelo Painel do Usuário'
+  );
+
+  // 13. Parceiro autenticado envia mensagem privada para o Super Admin
+  const partnerPrivateMsg = await sendChatMessage({
+    sender_id: 'user-jorge-0001',
+    sender_name: 'Jorge Carvalho',
+    sender_role: 'partner',
+    content: 'Mensagem privada de suporte do parceiro Jorge.',
+    type: 'private',
+    recipient_id: 'admin',
+    recipient_name: 'Super Admin',
+  });
+  assert(
+    partnerPrivateMsg.success === true &&
+    partnerPrivateMsg.message?.recipient_id === 'admin',
+    '68. Espelhamento do chat no painel suporta canal privado direto com Super Admin'
+  );
+
   // Retorna presença para modo automático
   await updateChatSettings({ manualOverride: 'auto' });
 

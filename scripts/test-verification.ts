@@ -26,6 +26,7 @@ import {
   recordChatParticipantPresence,
   getActiveChatParticipants,
 } from '../src/lib/dataService';
+import { supabase, isSupabaseConfigured } from '../src/lib/supabase';
 
 console.log('================================================================');
 console.log(' INICIANDO BATERIA DE TESTES DO SAAS - MODO PRODUÇÃO ');
@@ -606,6 +607,22 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
     clearedAuth === null,
     '72. Visitante encerra sessão e limpa credenciais com sucesso'
   );
+
+  // Limpeza de teardown dos testes: remove mensagens e presenças temporárias do banco
+  const testMessageIds = [
+    offlinePrivateMsg?.message?.id,
+    onlinePublicMsg?.message?.id,
+    adminDirectMsg?.message?.id,
+    partnerPanelMsg?.message?.id,
+    partnerPrivateMsg?.message?.id,
+  ].filter(Boolean) as string[];
+
+  if (isSupabaseConfigured() && supabase) {
+    if (testMessageIds.length > 0) {
+      await supabase.from('chat_messages').delete().in('id', testMessageIds);
+    }
+    await supabase.from('chat_participants').delete().eq('id', visitorAuth.id);
+  }
 
   // Retorna presença para modo automático e garante admin deslogado (offline)
   await updateChatSettings({ manualOverride: 'auto' });

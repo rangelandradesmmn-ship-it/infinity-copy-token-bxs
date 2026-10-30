@@ -20,6 +20,7 @@ import {
   AlertCircle,
   HelpCircle,
   MessageCircle,
+  ChevronDown,
 } from 'lucide-react';
 import {
   ChatMessage,
@@ -81,7 +82,11 @@ export function LandingChatWidget({
   const [adminTargetUserId, setAdminTargetUserId] = useState<string | null>(null);
   const [adminTargetUserName, setAdminTargetUserName] = useState<string | null>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const prevMessagesCountRef = useRef(0);
+  const lastMsgIdRef = useRef<string | null>(null);
 
   // Initialize Visitor ID and Session
   useEffect(() => {
@@ -182,12 +187,65 @@ export function LandingChatWidget({
     };
   }, [loadData]);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom safely within container without causing window viewport jump
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    el.scrollTo({
+      top: el.scrollHeight,
+      behavior,
+    });
+    isAtBottomRef.current = true;
+    setShowScrollBottom(false);
+  }, []);
+
+  // Monitor user scrolling inside the chat to detect if they scrolled up to read history
+  const handleContainerScroll = useCallback(() => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    // Considered at bottom if within 60px of the end
+    const atBottom = distanceToBottom <= 60;
+    isAtBottomRef.current = atBottom;
+    setShowScrollBottom(!atBottom);
+  }, []);
+
+  // Reset scroll to bottom on tab switch or first open
   useEffect(() => {
     if (isOpen) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      isAtBottomRef.current = true;
+      setShowScrollBottom(false);
+      const timer = setTimeout(() => {
+        scrollToBottom('auto');
+      }, 50);
+      return () => clearTimeout(timer);
     }
-  }, [publicMessages, privateMessages, isOpen, activeTab]);
+  }, [isOpen, activeTab, scrollToBottom]);
+
+  // Intelligent scroll on message changes: NEVER lock or yank the scrollbar if user scrolled up!
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const currentTabMessages = activeTab === 'public' ? publicMessages : privateMessages;
+    const count = currentTabMessages.length;
+    const latestMsg = count > 0 ? currentTabMessages[count - 1] : null;
+    const latestId = latestMsg?.id || null;
+
+    const hasNewMessage =
+      count > prevMessagesCountRef.current ||
+      (latestId !== null && latestId !== lastMsgIdRef.current);
+
+    prevMessagesCountRef.current = count;
+    lastMsgIdRef.current = latestId;
+
+    // Only scroll automatically if user was already at the bottom
+    if (isAtBottomRef.current) {
+      scrollToBottom('smooth');
+    } else if (hasNewMessage) {
+      // User is reading older messages: keep their scroll intact and show jump button
+      setShowScrollBottom(true);
+    }
+  }, [publicMessages, privateMessages, isOpen, activeTab, scrollToBottom]);
 
   // Save customized visitor name
   const handleSaveName = (newName: string) => {
@@ -244,7 +302,10 @@ export function LandingChatWidget({
         setErrorMsg(res.error || 'Não foi possível enviar a mensagem.');
       } else {
         setInputText('');
+        isAtBottomRef.current = true;
+        setShowScrollBottom(false);
         await loadData();
+        setTimeout(() => scrollToBottom('smooth'), 50);
       }
     } catch {
       setErrorMsg('Erro inesperado ao enviar mensagem.');
@@ -498,7 +559,12 @@ export function LandingChatWidget({
           )}
 
           {/* MESSAGE LIST BODY */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-3.5 text-xs">
+          <div className="relative flex-1 min-h-0 flex flex-col">
+            <div
+              ref={chatContainerRef}
+              onScroll={handleContainerScroll}
+              className="flex-1 min-h-0 p-4 overflow-y-auto overscroll-contain space-y-3.5 text-xs"
+            >
             {/* PUBLIC TAB NOTICE WHEN ADMIN OFFLINE */}
             {activeTab === 'public' && !isAdminOnline && (
               <div className="p-4 rounded-2xl bg-slate-900/90 border border-amber-500/30 text-amber-300 space-y-2">
@@ -649,7 +715,20 @@ export function LandingChatWidget({
               })
             )}
 
-            <div ref={messagesEndRef} />
+            </div>
+
+            {/* FLOATING "SCROLL TO BOTTOM" PILL */}
+            {showScrollBottom && (
+              <button
+                type="button"
+                onClick={() => scrollToBottom('smooth')}
+                className="absolute bottom-3 right-4 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/95 hover:bg-purple-600 text-slate-200 hover:text-white border border-slate-700/80 shadow-2xl text-[11px] font-semibold backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-95"
+                title="Rolar para as mensagens mais recentes"
+              >
+                <ChevronDown className="w-3.5 h-3.5 text-purple-400 group-hover:text-white" />
+                <span>Rolar para o fim</span>
+              </button>
+            )}
           </div>
 
           {/* ERROR ALERT */}

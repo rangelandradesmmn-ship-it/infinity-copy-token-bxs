@@ -394,6 +394,147 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
     '56. Schema de personalização do parceiro restringe estritamente canais oficiais (somente Super Admin)'
   );
 
+  // ------------------------------------------------------------------
+  // TESTE 18: Chat Online, Bate-Papo Coletivo & Moderação do Super Admin
+  // ------------------------------------------------------------------
+  console.log('\n--- Módulo 18: Chat Online, Bate-Papo Coletivo & Moderação do Super Admin ---');
+
+  const {
+    sendChatMessage,
+    getChatMessages,
+    deleteChatMessage,
+    muteUser,
+    unmuteUser,
+    isUserMuted,
+    markPrivateMessagesAsRead,
+    updateChatSettings,
+  } = await import('../src/lib/dataService');
+
+  // 1. Simula admin offline
+  await updateChatSettings({ manualOverride: 'offline' });
+
+  // 2. Quando admin offline, bate-papo geral deve ser bloqueado para usuários comuns
+  const offlinePublicAttempt = await sendChatMessage({
+    sender_id: 'visitor-test-01',
+    sender_name: 'Visitante Teste',
+    sender_role: 'visitor',
+    content: 'Olá pessoal, alguém online?',
+    type: 'public',
+  });
+  assert(
+    offlinePublicAttempt.success === false &&
+    Boolean(offlinePublicAttempt.error?.includes('pausado')),
+    '57. Bate-papo geral bloqueia envio de mensagens quando o Administrador está offline'
+  );
+
+  // 3. Quando admin offline, usuário pode enviar mensagem no PRIVADO do admin
+  const offlinePrivateMsg = await sendChatMessage({
+    sender_id: 'visitor-test-01',
+    sender_name: 'Visitante Teste',
+    sender_role: 'visitor',
+    content: 'Olá Administrador, tenho uma dúvida sobre o plano de adesão.',
+    type: 'private',
+    recipient_id: 'admin',
+    recipient_name: 'Super Admin',
+  });
+  assert(
+    offlinePrivateMsg.success === true &&
+    offlinePrivateMsg.message?.read_status === 'pending',
+    '58. Usuário consegue enviar mensagem privada para o admin offline com status pendente de leitura'
+  );
+
+  // 4. Admin visualiza mensagem privada -> status muda para "read" (leitura realizada)
+  const markReadRes = await markPrivateMessagesAsRead('visitor-test-01', 'user-rangel-0001');
+  const userPrivateThread = await getChatMessages({ type: 'private', visitorId: 'visitor-test-01' });
+  const readMsg = userPrivateThread.find((m) => m.id === offlinePrivateMsg.message?.id);
+  assert(
+    markReadRes.success === true &&
+    readMsg?.read_status === 'read' &&
+    typeof readMsg?.read_at === 'string',
+    '59. Visualização do admin atualiza status para leitura realizada com data/hora em tempo real'
+  );
+
+  // 5. Admin entra online -> bate-papo geral fica liberado
+  await updateChatSettings({ manualOverride: 'online' });
+  const onlinePublicMsg = await sendChatMessage({
+    sender_id: 'visitor-test-01',
+    sender_name: 'Visitante Teste',
+    sender_role: 'visitor',
+    content: 'Agora o chat geral está aberto! Show de bola.',
+    type: 'public',
+  });
+  assert(
+    onlinePublicMsg.success === true &&
+    onlinePublicMsg.message?.content === 'Agora o chat geral está aberto! Show de bola.',
+    '60. Bate-papo geral fica liberado para todos os usuários quando o administrador está online'
+  );
+
+  // 6. Admin deleta mensagem do usuário
+  const deleteRes = await deleteChatMessage(onlinePublicMsg.message!.id, 'user-rangel-0001');
+  const allPublicAfterDelete = await getChatMessages({ type: 'public', includeDeleted: true });
+  const deletedMsg = allPublicAfterDelete.find((m) => m.id === onlinePublicMsg.message!.id);
+  assert(
+    deleteRes.success === true &&
+    deletedMsg?.is_deleted === true,
+    '61. Super Admin tem permissão para deletar mensagens dos usuários'
+  );
+
+  // 7. Admin restringe (silencia) usuário
+  await muteUser('visitor-spammer-99', 'Visitante Inconveniente', 'user-rangel-0001', 'Spam excessivo');
+  const mutedCheck = await isUserMuted('visitor-spammer-99');
+  assert(
+    mutedCheck === true,
+    '62. Super Admin restringe usuário com sucesso (aplicação do silenciador)'
+  );
+
+  // 8. Usuário silenciado é bloqueado de enviar novas mensagens
+  const mutedSendAttempt = await sendChatMessage({
+    sender_id: 'visitor-spammer-99',
+    sender_name: 'Visitante Inconveniente',
+    sender_role: 'visitor',
+    content: 'Tentando enviar spam...',
+    type: 'public',
+  });
+  assert(
+    mutedSendAttempt.success === false &&
+    Boolean(mutedSendAttempt.error?.includes('somente leitura')),
+    '63. Usuário restrito é impedido de enviar novas mensagens'
+  );
+
+  // 9. Usuário silenciado permanece autorizado a receber/ler mensagens
+  const roomMessages = await getChatMessages({ type: 'public' });
+  assert(
+    Array.isArray(roomMessages) && roomMessages.length > 0,
+    '64. Usuário restrito permanece recebendo e visualizando mensagens da sala (modo somente leitura)'
+  );
+
+  // 10. Admin remove restrição do usuário (desilenciar)
+  await unmuteUser('visitor-spammer-99', 'user-rangel-0001');
+  const unmutedCheck = await isUserMuted('visitor-spammer-99');
+  assert(
+    unmutedCheck === false,
+    '65. Super Admin reativa privilégios de envio do usuário com sucesso'
+  );
+
+  // 11. Admin envia mensagem no privado de um usuário
+  const adminDirectMsg = await sendChatMessage({
+    sender_id: 'user-rangel-0001',
+    sender_name: 'Rangel Andrade (Super Admin)',
+    sender_role: 'admin',
+    content: 'Olá! Estou entrando em contato no seu privado para tirar suas dúvidas.',
+    type: 'private',
+    recipient_id: 'visitor-test-01',
+    recipient_name: 'Visitante Teste',
+  });
+  assert(
+    adminDirectMsg.success === true &&
+    adminDirectMsg.message?.recipient_id === 'visitor-test-01',
+    '66. Super Admin envia mensagem direta no privado do usuário com sucesso'
+  );
+
+  // Retorna presença para modo automático
+  await updateChatSettings({ manualOverride: 'auto' });
+
   console.log('\n================================================================');
   console.log(` RESULTADO: ${passedTests} DE ${totalTests} TESTES APROVADOS COM SUCESSO! `);
   console.log('================================================================\n');

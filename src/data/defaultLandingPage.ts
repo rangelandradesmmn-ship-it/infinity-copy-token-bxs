@@ -220,6 +220,14 @@ export const initialLandingPageContent: LandingPageContent = {
       scheduleText: 'Segunda a Sexta às 20h',
     },
   },
+  chatSettings: {
+    enabled: true,
+    title: 'Chat da Comunidade & Suporte',
+    subtitle: 'Bate-papo ao vivo entre membros e atendimento com a moderação.',
+    welcomeMessage: 'Olá! Seja bem-vindo ao bate-papo oficial da Infinity Copy. Converse com os membros ou envie uma mensagem no privado do administrador.',
+    pinnedMessage: '🚀 Apresentações do projeto de Segunda a Sexta às 20h na nossa sala do Google Meet!',
+    slowModeSeconds: 0,
+  },
   ctaBanner: {
     enabled: true,
     title: 'Comece Sua Mudança Hoje',

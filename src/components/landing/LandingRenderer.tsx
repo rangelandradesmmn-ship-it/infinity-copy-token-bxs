@@ -16,6 +16,7 @@ import { FaqSection } from './FaqSection';
 import { TokenChartSection } from './TokenChartSection';
 import { CtaBannerSection } from './CtaBannerSection';
 import { FooterSection } from './FooterSection';
+import { LandingChatWidget } from './LandingChatWidget';
 
 interface LandingRendererProps {
   content: LandingPageContent;
@@ -213,6 +214,12 @@ export function LandingRenderer({
 
       {/* Footer */}
       <FooterSection footer={content.footer} brand={content.brand} user={user} />
+
+      {/* Online Chat Widget & Direct Support */}
+      <LandingChatWidget
+        customSettings={content.chatSettings}
+        currentUser={user}
+      />
     </div>
   );
 }

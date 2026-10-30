@@ -11,15 +11,18 @@ import {
 } from '@/types';
 import {
   getCurrentSessionUser,
+  getCurrentSessionUserId,
   getAdminDashboardMetrics,
   getAllUsers,
   getAuditLogs,
   getPublishedLandingPage,
   getLandingPageVersions,
+  recordAdminHeartbeat,
 } from '@/lib/dataService';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminMetricsOverview } from '@/components/admin/AdminMetricsOverview';
 import { AdminLeaderboard } from '@/components/admin/AdminLeaderboard';
+import { AdminChatModeration } from '@/components/admin/AdminChatModeration';
 import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
 import { AdminAuditTable } from '@/components/admin/AdminAuditTable';
 import { VersionHistoryModal } from '@/components/admin/VersionHistoryModal';
@@ -71,9 +74,18 @@ export default function AdminDashboardPage() {
       }
       setCurrentUser(user);
       setAuthorized(true);
+      recordAdminHeartbeat(user.id, true);
       await loadData();
     }
     checkAuthAndLoad();
+
+    // Heartbeat every 25s while viewing admin
+    const heartbeat = setInterval(() => {
+      const uId = getCurrentSessionUserId();
+      if (uId) recordAdminHeartbeat(uId, true);
+    }, 25000);
+
+    return () => clearInterval(heartbeat);
   }, [router]);
 
   if (!authorized || loading || !metrics) {
@@ -188,6 +200,13 @@ export default function AdminDashboardPage() {
 
           {/* Feature 2: Ranking de Desempenho (Leaderboard) */}
           <AdminLeaderboard topUsers={metrics.topUsers} />
+
+          {/* Feature 3: Moderação do Chat Online & Suporte em Tempo Real */}
+          {currentUser && (
+            <div id="chat">
+              <AdminChatModeration currentAdmin={currentUser} />
+            </div>
+          )}
 
           {/* Users Table */}
           <AdminUsersTable

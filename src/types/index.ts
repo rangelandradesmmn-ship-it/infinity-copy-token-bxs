@@ -155,6 +155,14 @@ export interface LandingPageContent {
     bscScanUrl?: string;
   };
   officialChannels?: OfficialChannels;
+  chatSettings?: {
+    enabled: boolean;
+    title: string;
+    subtitle: string;
+    welcomeMessage: string;
+    pinnedMessage?: string;
+    slowModeSeconds?: number;
+  };
   ctaBanner: {
     enabled: boolean;
     title: string;
@@ -235,3 +243,49 @@ export interface AdminDashboardMetrics {
   recentUsers: UserProfile[];
   recentEvents: LandingEvent[];
 }
+
+// -------------------------------------------------------------
+// Live Chat & Moderation System Types
+// -------------------------------------------------------------
+
+export type ChatMessageReadStatus = 'pending' | 'read';
+export type ChatMessageType = 'public' | 'private' | 'system';
+export type ChatUserRole = 'admin' | 'partner' | 'visitor';
+
+export interface ChatMessage {
+  id: string;
+  sender_id: string; // User ID or Visitor ID (e.g. 'guest_abc123')
+  sender_name: string;
+  sender_role: ChatUserRole;
+  content: string; // Pure text only
+  type: ChatMessageType; // 'public' | 'private' | 'system'
+  recipient_id?: string; // For private messages to admin or user
+  recipient_name?: string;
+  read_status?: ChatMessageReadStatus; // 'pending' | 'read'
+  read_at?: string; // Timestamp when admin or recipient marked as read
+  is_deleted?: boolean;
+  is_pinned?: boolean;
+  created_at: string;
+}
+
+export interface ChatSettings {
+  enabled: boolean;
+  title: string;
+  subtitle: string;
+  welcomeMessage: string;
+  adminOnline: boolean;
+  adminLastSeen?: string;
+  manualOverride: 'auto' | 'online' | 'offline';
+  slowModeSeconds: number;
+  pinnedMessage?: string;
+}
+
+export interface UserChatRestriction {
+  userId: string;
+  userName: string;
+  muted: boolean;
+  mutedAt: string;
+  mutedBy: string;
+  reason?: string;
+}
+

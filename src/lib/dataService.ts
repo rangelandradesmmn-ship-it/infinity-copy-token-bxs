@@ -9,6 +9,9 @@ import {
   AdminDashboardMetrics,
   UserMetrics,
   UserStatus,
+  ChatMessage,
+  ChatSettings,
+  UserChatRestriction,
 } from '@/types';
 import { initialLandingPageContent } from '@/data/defaultLandingPage';
 import {
@@ -31,6 +34,10 @@ const STORAGE_KEYS = {
   AUDIT: 'clonelp_audit_logs',
   SESSION_USER: 'clonelp_current_user_id',
   PASSWORDS: 'clonelp_passwords',
+  CHAT_MESSAGES: 'clonelp_chat_messages',
+  CHAT_SETTINGS: 'clonelp_chat_settings',
+  CHAT_RESTRICTIONS: 'clonelp_chat_restrictions',
+  ADMIN_PRESENCE: 'clonelp_admin_presence',
 };
 
 const TEST_USER_IDS = new Set(['admin-uuid-0001', 'user-uuid-0001', 'user-uuid-0002', 'user-uuid-0003']);
@@ -42,8 +49,18 @@ export const defaultPasswords: Record<string, string> = {
 };
 
 // --- In-Memory & LocalStorage Persistence for Mock/Local Mode ---
+const memoryStorage = new Map<string, string>();
+
 function getLocalItem<T>(key: string, defaultValue: T): T {
-  if (typeof window === 'undefined') return defaultValue;
+  if (typeof window === 'undefined') {
+    const raw = memoryStorage.get(key);
+    if (!raw) return defaultValue;
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return defaultValue;
+    }
+  }
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return defaultValue;
@@ -54,7 +71,10 @@ function getLocalItem<T>(key: string, defaultValue: T): T {
 }
 
 function setLocalItem<T>(key: string, value: T): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined') {
+    memoryStorage.set(key, JSON.stringify(value));
+    return;
+  }
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (err) {
@@ -134,18 +154,31 @@ export function initLocalDatabase() {
 // Current Authentication Session & Password Authentication
 // -------------------------------------------------------------
 export function getCurrentSessionUserId(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') {
+    const saved = memoryStorage.get(STORAGE_KEYS.SESSION_USER);
+    return saved ? JSON.parse(saved) : null;
+  }
   const saved = localStorage.getItem(STORAGE_KEYS.SESSION_USER);
   return saved && saved.trim() ? saved.trim() : null;
 }
 
 export function setCurrentSessionUserId(userId: string): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined') {
+    memoryStorage.set(STORAGE_KEYS.SESSION_USER, JSON.stringify(userId));
+    return;
+  }
   localStorage.setItem(STORAGE_KEYS.SESSION_USER, userId);
 }
 
 export function logoutUser(): void {
-  if (typeof window === 'undefined') return;
+  const currentId = getCurrentSessionUserId();
+  if (currentId === 'user-rangel-0001' || currentId === 'admin-uuid-0001') {
+    recordAdminHeartbeat(currentId, false);
+  }
+  if (typeof window === 'undefined') {
+    memoryStorage.delete(STORAGE_KEYS.SESSION_USER);
+    return;
+  }
   localStorage.removeItem(STORAGE_KEYS.SESSION_USER);
 }
 
@@ -174,6 +207,7 @@ export async function authenticateUser(
     if (cleanEmail === 'admin@saas.com' && (cleanPassword === 'admin123' || cleanPassword === 'senha123456')) {
       const rangel = allUsers.find((u) => u.email.toLowerCase() === 'rangelandradesmmn@gmail.com') || seedRangelUser;
       setCurrentSessionUserId(rangel.id);
+      recordAdminHeartbeat(rangel.id, true);
       return {
         success: true,
         user: rangel,
@@ -215,6 +249,9 @@ export async function authenticateUser(
 
   // Set active session in local storage
   setCurrentSessionUserId(user.id);
+  if (user.role === 'admin') {
+    recordAdminHeartbeat(user.id, true);
+  }
 
   return {
     success: true,
@@ -406,7 +443,7 @@ export async function saveLandingPageDraft(
       const nextVer = (highest?.version_number || 1) + 1;
 
       const { error: insertErr } = await supabase.from('landing_page_versions').insert({
-        id: `ver-draft-${Date.now()}`,
+        id: `ver-draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         version_number: nextVer,
         content_json: content,
         status: 'draft',
@@ -469,7 +506,7 @@ export async function publishLandingPage(
       .single();
 
     const newVersionNumber = (highest?.version_number || 0) + 1;
-    const newVersionId = `ver-${newVersionNumber}-${Date.now()}`;
+    const newVersionId = `ver-${newVersionNumber}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
     // Delete or update existing draft
     try {
@@ -816,7 +853,7 @@ export async function updateAllowedUserPersonalization(
       const { error } = await supabase
         .from('user_landing_settings')
         .insert({
-          id: `set-${Date.now()}`,
+          id: `set-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           user_id: userId,
           ...settingsUpdate,
         });
@@ -1145,7 +1182,7 @@ export async function registerNewUser(
   };
 
   const initialSettings: UserLandingSettings = {
-    id: `set-${Date.now()}`,
+    id: `set-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     user_id: userId,
     profile_image_url: '',
     registration_url: '',
@@ -1188,4 +1225,400 @@ export async function registerNewUser(
     user: { ...newUser, settings: initialSettings },
     message: 'Cadastro realizado com sucesso! Sua landing page já foi gerada.',
   };
+}
+
+// -------------------------------------------------------------
+// Live Chat & Moderation System
+// -------------------------------------------------------------
+
+export const initialChatSettings: ChatSettings = {
+  enabled: true,
+  title: 'Chat da Comunidade & Suporte',
+  subtitle: 'Bate-papo ao vivo entre membros e atendimento com a moderação.',
+  welcomeMessage:
+    'Olá! Seja bem-vindo ao bate-papo oficial da Infinity Copy. Converse com os membros ou envie uma mensagem no privado do administrador.',
+  adminOnline: false,
+  manualOverride: 'auto',
+  slowModeSeconds: 0,
+  pinnedMessage: '🚀 Apresentações do projeto de Segunda a Sexta às 20h na nossa sala do Google Meet!',
+};
+
+export const initialChatMessages: ChatMessage[] = [
+  {
+    id: 'msg-welcome-001',
+    sender_id: 'user-rangel-0001',
+    sender_name: 'Rangel Andrade',
+    sender_role: 'admin',
+    content: 'Sejam todos bem-vindos ao bate-papo oficial da nossa comunidade! Fiquem à vontade para tirar dúvidas e interagir.',
+    type: 'public',
+    is_pinned: true,
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+  },
+  {
+    id: 'msg-welcome-002',
+    sender_id: 'user-jorge-0001',
+    sender_name: 'Jorge Carvalho',
+    sender_role: 'partner',
+    content: 'Excelente projeto! Os resultados diários e a automação do copy estão superando todas as expectativas.',
+    type: 'public',
+    created_at: new Date(Date.now() - 1800000).toISOString(),
+  },
+];
+
+// 1. Admin Presence & Heartbeat
+export function recordAdminHeartbeat(adminId: string, isOnline: boolean = true): void {
+  const presence = {
+    adminId,
+    isOnline,
+    lastSeen: new Date().toISOString(),
+  };
+  setLocalItem(STORAGE_KEYS.ADMIN_PRESENCE, presence);
+}
+
+export async function getAdminPresenceStatus(): Promise<{ isOnline: boolean; manualOverride: 'auto' | 'online' | 'offline'; lastSeen: string }> {
+  const settings = await getChatSettings();
+  if (settings.manualOverride === 'online') {
+    return { isOnline: true, manualOverride: 'online', lastSeen: new Date().toISOString() };
+  }
+  if (settings.manualOverride === 'offline') {
+    return { isOnline: false, manualOverride: 'offline', lastSeen: '' };
+  }
+
+  // Auto mode
+  const currentUserId = getCurrentSessionUserId();
+  if (currentUserId === 'user-rangel-0001' || currentUserId === 'admin-uuid-0001') {
+    return { isOnline: true, manualOverride: 'auto', lastSeen: new Date().toISOString() };
+  }
+
+  const presence = getLocalItem<{ adminId: string; isOnline: boolean; lastSeen: string } | null>(
+    STORAGE_KEYS.ADMIN_PRESENCE,
+    null
+  );
+
+  if (presence && presence.isOnline) {
+    const diffMs = Date.now() - new Date(presence.lastSeen).getTime();
+    // Considered online if heartbeat received in last 2.5 minutes
+    if (diffMs < 150000) {
+      return { isOnline: true, manualOverride: 'auto', lastSeen: presence.lastSeen };
+    }
+  }
+
+  return { isOnline: false, manualOverride: 'auto', lastSeen: '' };
+}
+
+// 2. Chat Settings Management
+export async function getChatSettings(): Promise<ChatSettings> {
+  const settings = getLocalItem<ChatSettings>(STORAGE_KEYS.CHAT_SETTINGS, initialChatSettings);
+
+  // Calculate dynamic presence
+  let dynamicAdminOnline = false;
+  if (settings.manualOverride === 'online') {
+    dynamicAdminOnline = true;
+  } else if (settings.manualOverride === 'offline') {
+    dynamicAdminOnline = false;
+  } else {
+    const currentUserId = getCurrentSessionUserId();
+    if (currentUserId === 'user-rangel-0001' || currentUserId === 'admin-uuid-0001') {
+      dynamicAdminOnline = true;
+    } else {
+      const presence = getLocalItem<{ isOnline: boolean; lastSeen: string } | null>(STORAGE_KEYS.ADMIN_PRESENCE, null);
+      if (presence?.isOnline && Date.now() - new Date(presence.lastSeen).getTime() < 150000) {
+        dynamicAdminOnline = true;
+      }
+    }
+  }
+
+  return {
+    ...settings,
+    adminOnline: dynamicAdminOnline,
+  };
+}
+
+export async function updateChatSettings(
+  patch: Partial<ChatSettings>,
+  adminId?: string
+): Promise<{ success: boolean; settings: ChatSettings }> {
+  initLocalDatabase();
+  const current = await getChatSettings();
+  const updated: ChatSettings = {
+    ...current,
+    ...patch,
+  };
+  setLocalItem(STORAGE_KEYS.CHAT_SETTINGS, updated);
+
+  if (adminId) {
+    await logAdminAction(adminId, 'UPDATE_CHAT_SETTINGS', 'chat_settings', 'global', patch);
+  }
+
+  return { success: true, settings: updated };
+}
+
+// 3. Chat Messages (Public & Private)
+export async function getChatMessages(options?: {
+  type?: 'public' | 'private';
+  visitorId?: string;
+  includeDeleted?: boolean;
+}): Promise<ChatMessage[]> {
+  initLocalDatabase();
+  const allMessages = getLocalItem<ChatMessage[]>(STORAGE_KEYS.CHAT_MESSAGES, initialChatMessages);
+
+  let filtered = allMessages;
+
+  if (options?.type) {
+    filtered = filtered.filter((m) => m.type === options.type);
+  }
+
+  if (options?.type === 'private' && options.visitorId) {
+    // Visitor sees messages they sent OR received from admin
+    filtered = filtered.filter(
+      (m) =>
+        m.sender_id === options.visitorId ||
+        m.recipient_id === options.visitorId
+    );
+  }
+
+  if (!options?.includeDeleted) {
+    filtered = filtered.filter((m) => !m.is_deleted);
+  }
+
+  // Sort chronological ascending
+  return [...filtered].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+}
+
+// 4. Send Message
+export async function sendChatMessage(payload: {
+  sender_id: string;
+  sender_name: string;
+  sender_role: 'admin' | 'partner' | 'visitor';
+  content: string;
+  type: 'public' | 'private';
+  recipient_id?: string;
+  recipient_name?: string;
+}): Promise<{ success: boolean; message?: ChatMessage; error?: string }> {
+  initLocalDatabase();
+
+  // Check if sender is restricted/muted
+  const isMuted = await isUserMuted(payload.sender_id);
+  if (isMuted && payload.sender_role !== 'admin') {
+    return {
+      success: false,
+      error: 'Você está no modo somente leitura (envio restrito pelo administrador) e não pode enviar novas mensagens.',
+    };
+  }
+
+  // Pure text sanitization
+  const cleanContent = payload.content.replace(/<[^>]*>?/gm, '').trim();
+  if (!cleanContent) {
+    return { success: false, error: 'A mensagem não pode ser vazia.' };
+  }
+  if (cleanContent.length > 500) {
+    return { success: false, error: 'A mensagem não pode ter mais de 500 caracteres.' };
+  }
+
+  // If public chat, verify admin is online
+  if (payload.type === 'public' && payload.sender_role !== 'admin') {
+    const presence = await getAdminPresenceStatus();
+    if (!presence.isOnline) {
+      return {
+        success: false,
+        error:
+          'O bate-papo geral está pausado no momento pois o administrador está offline. Você pode enviar uma mensagem no privado do administrador!',
+      };
+    }
+  }
+
+  const now = new Date().toISOString();
+  const newMsg: ChatMessage = {
+    id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    sender_id: payload.sender_id,
+    sender_name: payload.sender_name.trim() || 'Visitante',
+    sender_role: payload.sender_role,
+    content: cleanContent,
+    type: payload.type,
+    recipient_id: payload.recipient_id,
+    recipient_name: payload.recipient_name,
+    read_status: payload.type === 'private' ? 'pending' : undefined,
+    is_deleted: false,
+    is_pinned: false,
+    created_at: now,
+  };
+
+  const allMessages = getLocalItem<ChatMessage[]>(STORAGE_KEYS.CHAT_MESSAGES, initialChatMessages);
+  allMessages.push(newMsg);
+  setLocalItem(STORAGE_KEYS.CHAT_MESSAGES, allMessages);
+
+  // If Supabase is active, try to insert there too
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('chat_messages').insert({
+        id: newMsg.id,
+        sender_id: newMsg.sender_id,
+        sender_name: newMsg.sender_name,
+        sender_role: newMsg.sender_role,
+        content: newMsg.content,
+        type: newMsg.type,
+        recipient_id: newMsg.recipient_id || null,
+        recipient_name: newMsg.recipient_name || null,
+        read_status: newMsg.read_status || null,
+        is_deleted: false,
+        is_pinned: false,
+        created_at: newMsg.created_at,
+      });
+    } catch {
+      // Non-blocking fallback
+    }
+  }
+
+  return { success: true, message: newMsg };
+}
+
+// 5. Delete Message (Admin Only)
+export async function deleteChatMessage(
+  messageId: string,
+  adminId: string
+): Promise<{ success: boolean; message?: string }> {
+  initLocalDatabase();
+  const allMessages = getLocalItem<ChatMessage[]>(STORAGE_KEYS.CHAT_MESSAGES, initialChatMessages);
+  const idx = allMessages.findIndex((m) => m.id === messageId);
+  if (idx >= 0) {
+    allMessages[idx].is_deleted = true;
+    allMessages[idx].content = '[Mensagem removida pela moderação]';
+    setLocalItem(STORAGE_KEYS.CHAT_MESSAGES, allMessages);
+  }
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase
+        .from('chat_messages')
+        .update({ is_deleted: true, content: '[Mensagem removida pela moderação]' })
+        .eq('id', messageId);
+    } catch {}
+  }
+
+  await logAdminAction(adminId, 'DELETE_CHAT_MESSAGE', 'chat_message', messageId);
+  return { success: true, message: 'Mensagem deletada com sucesso.' };
+}
+
+// 6. Restrict / Mute User (Admin Only)
+export async function muteUser(
+  userId: string,
+  userName: string,
+  adminId: string,
+  reason?: string
+): Promise<{ success: boolean }> {
+  initLocalDatabase();
+  const restrictions = getLocalItem<UserChatRestriction[]>(STORAGE_KEYS.CHAT_RESTRICTIONS, []);
+  const existingIdx = restrictions.findIndex((r) => r.userId === userId);
+  const item: UserChatRestriction = {
+    userId,
+    userName: userName || 'Usuário',
+    muted: true,
+    mutedAt: new Date().toISOString(),
+    mutedBy: adminId,
+    reason: reason || 'Restrito pela moderação do chat.',
+  };
+
+  if (existingIdx >= 0) {
+    restrictions[existingIdx] = item;
+  } else {
+    restrictions.push(item);
+  }
+  setLocalItem(STORAGE_KEYS.CHAT_RESTRICTIONS, restrictions);
+
+  await logAdminAction(adminId, 'MUTE_CHAT_USER', 'chat_restriction', userId, { userName, reason });
+  return { success: true };
+}
+
+export async function unmuteUser(userId: string, adminId: string): Promise<{ success: boolean }> {
+  initLocalDatabase();
+  const restrictions = getLocalItem<UserChatRestriction[]>(STORAGE_KEYS.CHAT_RESTRICTIONS, []);
+  const updated = restrictions.filter((r) => r.userId !== userId);
+  setLocalItem(STORAGE_KEYS.CHAT_RESTRICTIONS, updated);
+
+  await logAdminAction(adminId, 'UNMUTE_CHAT_USER', 'chat_restriction', userId);
+  return { success: true };
+}
+
+export async function isUserMuted(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  initLocalDatabase();
+  const restrictions = getLocalItem<UserChatRestriction[]>(STORAGE_KEYS.CHAT_RESTRICTIONS, []);
+  return restrictions.some((r) => r.userId === userId && r.muted);
+}
+
+export async function getMutedUsers(): Promise<UserChatRestriction[]> {
+  initLocalDatabase();
+  return getLocalItem<UserChatRestriction[]>(STORAGE_KEYS.CHAT_RESTRICTIONS, []);
+}
+
+// 7. Mark Private Messages As Read (Admin views user's private messages)
+export async function markPrivateMessagesAsRead(
+  visitorOrUserId: string,
+  adminId: string
+): Promise<{ success: boolean; updatedCount: number }> {
+  initLocalDatabase();
+  const allMessages = getLocalItem<ChatMessage[]>(STORAGE_KEYS.CHAT_MESSAGES, initialChatMessages);
+  let updatedCount = 0;
+  const now = new Date().toISOString();
+
+  allMessages.forEach((m) => {
+    // If message was sent by the visitor and is still pending
+    if (m.type === 'private' && m.sender_id === visitorOrUserId && m.read_status === 'pending') {
+      m.read_status = 'read';
+      m.read_at = now;
+      updatedCount++;
+    }
+  });
+
+  if (updatedCount > 0) {
+    setLocalItem(STORAGE_KEYS.CHAT_MESSAGES, allMessages);
+  }
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase
+        .from('chat_messages')
+        .update({ read_status: 'read', read_at: now })
+        .eq('type', 'private')
+        .eq('sender_id', visitorOrUserId)
+        .eq('read_status', 'pending');
+    } catch {}
+  }
+
+  return { success: true, updatedCount };
+}
+
+// 8. Pin/Unpin Message & Clear Chat
+export async function pinChatMessage(messageId: string, adminId: string): Promise<{ success: boolean }> {
+  initLocalDatabase();
+  const allMessages = getLocalItem<ChatMessage[]>(STORAGE_KEYS.CHAT_MESSAGES, initialChatMessages);
+  allMessages.forEach((m) => {
+    m.is_pinned = m.id === messageId;
+  });
+  setLocalItem(STORAGE_KEYS.CHAT_MESSAGES, allMessages);
+  await logAdminAction(adminId, 'PIN_CHAT_MESSAGE', 'chat_message', messageId);
+  return { success: true };
+}
+
+export async function clearPublicChat(adminId: string): Promise<{ success: boolean }> {
+  initLocalDatabase();
+  const allMessages = getLocalItem<ChatMessage[]>(STORAGE_KEYS.CHAT_MESSAGES, initialChatMessages);
+  // Keep only private messages
+  const privateOnly = allMessages.filter((m) => m.type === 'private');
+  // Add a clean restart message
+  privateOnly.push({
+    id: `msg-${Date.now()}`,
+    sender_id: adminId,
+    sender_name: 'Moderação Oficial',
+    sender_role: 'admin',
+    content: 'O histórico do bate-papo foi reiniciado pela administração.',
+    type: 'public',
+    is_pinned: false,
+    created_at: new Date().toISOString(),
+  });
+  setLocalItem(STORAGE_KEYS.CHAT_MESSAGES, privateOnly);
+  await logAdminAction(adminId, 'CLEAR_PUBLIC_CHAT', 'chat_message', 'public');
+  return { success: true };
 }

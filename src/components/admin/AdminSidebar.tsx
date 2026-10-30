@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   ArrowLeft,
   LogOut,
+  MessageSquare,
 } from 'lucide-react';
 
 export function AdminSidebar() {
@@ -30,6 +31,12 @@ export function AdminSidebar() {
       href: '/admin',
       icon: LayoutDashboard,
       active: pathname === '/admin',
+    },
+    {
+      label: 'Chat & Moderação',
+      href: '/admin#chat',
+      icon: MessageSquare,
+      active: false,
     },
     {
       label: 'Editor Master',

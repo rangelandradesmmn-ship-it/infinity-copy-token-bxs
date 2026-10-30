@@ -104,14 +104,15 @@ export function LandingChatWidget({
 
   // Fetch settings & messages
   const loadData = useCallback(async () => {
-    if (!visitorId) return;
+    if (!visitorId && !currentUser?.id) return;
 
     try {
+      const effectiveUserId = currentUser?.id || visitorId;
       const [s, pub, priv, muted, presence] = await Promise.all([
         getChatSettings(),
         getChatMessages({ type: 'public' }),
-        getChatMessages({ type: 'private', visitorId }),
-        isUserMuted(currentUser?.id || visitorId),
+        getChatMessages({ type: 'private', visitorId, userId: currentUser?.id }),
+        isUserMuted(effectiveUserId),
         getAdminPresenceStatus(),
       ]);
 
@@ -250,7 +251,10 @@ export function LandingChatWidget({
 
   const isAdminOnline = Boolean(settings?.adminOnline);
   const unreadPrivateCount = privateMessages.filter(
-    (m) => m.type === 'private' && m.recipient_id === (currentUser?.id || visitorId) && m.read_status === 'pending'
+    (m) =>
+      m.type === 'private' &&
+      (m.recipient_id === currentUser?.id || m.recipient_id === visitorId) &&
+      m.read_status === 'pending'
   ).length;
 
   const currentTabMessages = activeTab === 'public' ? publicMessages : privateMessages;
@@ -491,7 +495,9 @@ export function LandingChatWidget({
               </div>
             ) : (
               currentTabMessages.map((msg) => {
-                const isMe = msg.sender_id === (currentUser?.id || visitorId);
+                const isMe =
+                  (currentUser?.id && msg.sender_id === currentUser.id) ||
+                  msg.sender_id === visitorId;
                 const isAdminMsg = msg.sender_role === 'admin';
                 const isPartnerMsg = msg.sender_role === 'partner';
 

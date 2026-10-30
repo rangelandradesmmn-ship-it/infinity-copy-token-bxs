@@ -170,16 +170,21 @@ export function setCurrentSessionUserId(userId: string): void {
   localStorage.setItem(STORAGE_KEYS.SESSION_USER, userId);
 }
 
-export function logoutUser(): void {
+export async function logoutUser(): Promise<void> {
   const currentId = getCurrentSessionUserId();
-  if (currentId === 'user-rangel-0001' || currentId === 'admin-uuid-0001') {
-    recordAdminHeartbeat(currentId, false);
-  }
-  if (typeof window === 'undefined') {
+
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEYS.SESSION_USER);
+    localStorage.removeItem(STORAGE_KEYS.ADMIN_PRESENCE);
+    const localSettings = getLocalItem<ChatSettings>(STORAGE_KEYS.CHAT_SETTINGS, initialChatSettings);
+    setLocalItem(STORAGE_KEYS.CHAT_SETTINGS, { ...localSettings, adminOnline: false });
+  } else {
     memoryStorage.delete(STORAGE_KEYS.SESSION_USER);
-    return;
   }
-  localStorage.removeItem(STORAGE_KEYS.SESSION_USER);
+
+  if (currentId) {
+    await recordAdminHeartbeatAsync(currentId, false);
+  }
 }
 
 export async function getCurrentSessionUser(): Promise<UserWithSettings | null> {
@@ -1344,6 +1349,29 @@ export function recordAdminHeartbeat(adminId: string, isOnline: boolean = true):
   }
 }
 
+export async function recordAdminHeartbeatAsync(adminId: string, isOnline: boolean = true): Promise<void> {
+  const now = new Date().toISOString();
+  const presence = {
+    adminId,
+    isOnline,
+    lastSeen: now,
+  };
+  setLocalItem(STORAGE_KEYS.ADMIN_PRESENCE, presence);
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase
+        .from('chat_settings')
+        .update({
+          admin_online: isOnline,
+          admin_last_seen: now,
+          updated_at: now,
+        })
+        .eq('id', 'chat_global_settings');
+    } catch {}
+  }
+}
+
 export async function getAdminPresenceStatus(): Promise<{ isOnline: boolean; manualOverride: 'auto' | 'online' | 'offline'; lastSeen: string }> {
   const settings = await getChatSettings();
   if (settings.manualOverride === 'online') {
@@ -1353,26 +1381,19 @@ export async function getAdminPresenceStatus(): Promise<{ isOnline: boolean; man
     return { isOnline: false, manualOverride: 'offline', lastSeen: '' };
   }
 
-  // Auto mode
-  const currentUserId = getCurrentSessionUserId();
-  if (currentUserId === 'user-rangel-0001' || currentUserId === 'admin-uuid-0001') {
-    return { isOnline: true, manualOverride: 'auto', lastSeen: new Date().toISOString() };
-  }
-
+  // Auto mode: check local presence or Cloud presence (timeout: 45s)
   const presence = getLocalItem<{ adminId: string; isOnline: boolean; lastSeen: string } | null>(
     STORAGE_KEYS.ADMIN_PRESENCE,
     null
   );
 
-  if (presence && presence.isOnline) {
+  if (presence && presence.isOnline === true && presence.lastSeen) {
     const diffMs = Date.now() - new Date(presence.lastSeen).getTime();
-    // Considered online if heartbeat received in last 5 minutes
-    if (diffMs < 300000) {
+    if (diffMs < 45000) {
       return { isOnline: true, manualOverride: 'auto', lastSeen: presence.lastSeen };
     }
   }
 
-  // Check Supabase Cloud presence from settings
   if (settings.adminOnline) {
     return { isOnline: true, manualOverride: 'auto', lastSeen: new Date().toISOString() };
   }
@@ -1397,14 +1418,15 @@ export async function getChatSettings(): Promise<ChatSettings> {
         const diffMs = data.admin_last_seen
           ? Date.now() - new Date(data.admin_last_seen).getTime()
           : Infinity;
-        const isRecent = diffMs < 300000; // 5 min
+        // Heartbeats sent every 15s. Marked offline if older than 45s or if admin_online is false
+        const isRecent = diffMs < 45000;
 
         const isOnlineInDb =
           data.manual_override === 'online'
             ? true
             : data.manual_override === 'offline'
             ? false
-            : Boolean(data.admin_online && (isRecent || !data.admin_last_seen));
+            : Boolean(data.admin_online === true && data.admin_last_seen && isRecent);
 
         settings = {
           enabled: data.is_chat_enabled,
@@ -1428,16 +1450,19 @@ export async function getChatSettings(): Promise<ChatSettings> {
   } else if (settings.manualOverride === 'offline') {
     dynamicAdminOnline = false;
   } else {
-    const currentUserId = getCurrentSessionUserId();
-    if (currentUserId === 'user-rangel-0001' || currentUserId === 'admin-uuid-0001') {
+    const presence = getLocalItem<{ isOnline: boolean; lastSeen: string } | null>(STORAGE_KEYS.ADMIN_PRESENCE, null);
+    const isLocalRecent = Boolean(
+      presence?.isOnline === true &&
+      presence.lastSeen &&
+      Date.now() - new Date(presence.lastSeen).getTime() < 45000
+    );
+
+    if (isLocalRecent) {
+      dynamicAdminOnline = true;
+    } else if (settings.adminOnline) {
       dynamicAdminOnline = true;
     } else {
-      const presence = getLocalItem<{ isOnline: boolean; lastSeen: string } | null>(STORAGE_KEYS.ADMIN_PRESENCE, null);
-      if (presence?.isOnline && Date.now() - new Date(presence.lastSeen).getTime() < 300000) {
-        dynamicAdminOnline = true;
-      } else if (settings.adminOnline) {
-        dynamicAdminOnline = true;
-      }
+      dynamicAdminOnline = false;
     }
   }
 

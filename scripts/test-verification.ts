@@ -408,6 +408,7 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
     isUserMuted,
     markPrivateMessagesAsRead,
     updateChatSettings,
+    logoutUser,
   } = await import('../src/lib/dataService');
 
   // 1. Simula admin offline
@@ -563,8 +564,9 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
     '68. Espelhamento do chat no painel suporta canal privado direto com Super Admin'
   );
 
-  // Retorna presença para modo automático
+  // Retorna presença para modo automático e garante admin deslogado (offline)
   await updateChatSettings({ manualOverride: 'auto' });
+  await logoutUser();
 
   console.log('\n================================================================');
   console.log(` RESULTADO: ${passedTests} DE ${totalTests} TESTES APROVADOS COM SUCESSO! `);

@@ -78,8 +78,8 @@ export default function UserPanelPage() {
     checkAuthAndLoad();
   }, [router]);
 
-  const handleLogout = () => {
-    logoutUser();
+  const handleLogout = async () => {
+    await logoutUser();
     router.push('/painel/login');
   };
 

@@ -31,12 +31,26 @@ export function AdminSidebar() {
       if (currentId) {
         recordAdminHeartbeat(currentId, true);
       }
-    }, 20000);
-    return () => clearInterval(hb);
+    }, 15000);
+
+    const handleUnload = () => {
+      const currentId = getCurrentSessionUserId();
+      if (currentId) {
+        recordAdminHeartbeat(currentId, false);
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+
+    return () => {
+      clearInterval(hb);
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+    };
   }, []);
 
-  const handleLogout = () => {
-    logoutUser();
+  const handleLogout = async () => {
+    await logoutUser();
     router.push('/admin/login');
   };
 

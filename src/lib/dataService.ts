@@ -1728,7 +1728,7 @@ export async function getChatMessages(options?: {
   includeDeleted?: boolean;
 }): Promise<ChatMessage[]> {
   initLocalDatabase();
-  let allMessages = getLocalItem<ChatMessage[]>(STORAGE_KEYS.CHAT_MESSAGES, initialChatMessages);
+  let allMessages = getLocalItem<ChatMessage[]>(STORAGE_KEYS.CHAT_MESSAGES, []);
 
   // Sync with Supabase Cloud
   if (isSupabaseConfigured() && supabase) {
@@ -1745,23 +1745,46 @@ export async function getChatMessages(options?: {
       const { data, error } = await query;
       if (!error && data) {
         const cloudMessages = data as ChatMessage[];
-        const cloudIdSet = new Set(cloudMessages.map((m) => m.id));
 
-        // Merge cloud messages with local ones
-        const merged = [
-          ...cloudMessages,
-          ...allMessages.filter((m) => !cloudIdSet.has(m.id)),
-        ];
+        if (options?.type === 'public') {
+          // Public messages: Supabase is the single source of truth.
+          // Discard any old local public messages so cleared/deleted messages immediately disappear on all clones and landing pages.
+          const localPrivate = allMessages.filter((m) => m.type === 'private');
+          const updated = [...localPrivate, ...cloudMessages];
+          setLocalItem(STORAGE_KEYS.CHAT_MESSAGES, updated);
+          return cloudMessages;
+        }
 
-        allMessages = merged;
-        setLocalItem(STORAGE_KEYS.CHAT_MESSAGES, merged);
+        if (options?.type === 'private') {
+          // Private messages: keep local public, update local private
+          const localPublic = allMessages.filter((m) => m.type === 'public');
+          const updated = [...localPublic, ...cloudMessages];
+          setLocalItem(STORAGE_KEYS.CHAT_MESSAGES, updated);
+
+          let filtered = cloudMessages;
+          if (options.visitorId || options.userId) {
+            const validIds = new Set([options.visitorId, options.userId].filter(Boolean) as string[]);
+            filtered = filtered.filter(
+              (m) =>
+                validIds.has(m.sender_id) ||
+                validIds.has(m.recipient_id || '') ||
+                (validIds.has('admin') && (m.recipient_id === 'admin' || m.sender_id === 'admin'))
+            );
+          }
+          return filtered;
+        }
+
+        // When all types are requested (or in moderation overview)
+        setLocalItem(STORAGE_KEYS.CHAT_MESSAGES, cloudMessages);
+        return cloudMessages;
       }
     } catch {
-      // Fallback to local
+      // Fallback to local if Supabase is offline
     }
   }
 
-  let filtered = allMessages;
+  // Fallback to local data when Supabase is not configured or offline
+  let filtered = allMessages.length > 0 ? allMessages : initialChatMessages;
 
   if (options?.type) {
     filtered = filtered.filter((m) => m.type === options.type);

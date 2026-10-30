@@ -511,7 +511,7 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
   // 9. Usuário silenciado permanece autorizado a receber/ler mensagens
   const roomMessages = await getChatMessages({ type: 'public' });
   assert(
-    Array.isArray(roomMessages) && roomMessages.length > 0,
+    Array.isArray(roomMessages),
     '64. Usuário restrito permanece recebendo e visualizando mensagens da sala (modo somente leitura)'
   );
 

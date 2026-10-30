@@ -179,9 +179,20 @@ export function AdminChatModeration({ currentAdmin }: AdminChatModerationProps) 
   // Clear public chat
   const handleClearChat = async () => {
     if (!confirm('ATENÇÃO: Deseja realmente limpar todas as mensagens do bate-papo geral?')) return;
-    await clearPublicChat(currentAdmin.id);
-    await loadData();
-    showFeedback('success', 'Bate-papo geral reiniciado com sucesso.');
+    setLoading(true);
+    try {
+      const res = await clearPublicChat(currentAdmin.id);
+      await loadData();
+      if (res.success) {
+        showFeedback('success', 'Bate-papo geral reiniciado com sucesso.');
+      } else {
+        showFeedback('error', res.message || 'Falha ao limpar bate-papo geral.');
+      }
+    } catch {
+      showFeedback('error', 'Erro inesperado ao limpar bate-papo geral.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Send admin reply in private DM

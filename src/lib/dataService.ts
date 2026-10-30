@@ -2071,13 +2071,13 @@ export async function pinChatMessage(messageId: string, adminId: string): Promis
   return { success: true };
 }
 
-export async function clearPublicChat(adminId: string): Promise<{ success: boolean }> {
+export async function clearPublicChat(adminId: string): Promise<{ success: boolean; message?: string }> {
   initLocalDatabase();
   const allMessages = getLocalItem<ChatMessage[]>(STORAGE_KEYS.CHAT_MESSAGES, initialChatMessages);
   // Keep only private messages
   const privateOnly = allMessages.filter((m) => m.type === 'private');
   // Add a clean restart message
-  privateOnly.push({
+  const restartMsg: ChatMessage = {
     id: `msg-${Date.now()}`,
     sender_id: adminId,
     sender_name: 'Moderação Oficial',
@@ -2086,8 +2086,40 @@ export async function clearPublicChat(adminId: string): Promise<{ success: boole
     type: 'public',
     is_pinned: false,
     created_at: new Date().toISOString(),
-  });
+    is_deleted: false,
+  };
+  privateOnly.push(restartMsg);
   setLocalItem(STORAGE_KEYS.CHAT_MESSAGES, privateOnly);
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      // 1. Delete all public messages in Supabase
+      const { error: delErr } = await supabase.from('chat_messages').delete().eq('type', 'public');
+      if (delErr) {
+        console.error('Failed to delete public chat in Supabase:', delErr);
+      }
+      // 2. Insert fresh restart message
+      const { error: insErr } = await supabase.from('chat_messages').insert([
+        {
+          id: restartMsg.id,
+          sender_id: restartMsg.sender_id,
+          sender_name: restartMsg.sender_name,
+          sender_role: restartMsg.sender_role,
+          content: restartMsg.content,
+          type: restartMsg.type,
+          is_pinned: false,
+          created_at: restartMsg.created_at,
+          is_deleted: false,
+        },
+      ]);
+      if (insErr) {
+        console.error('Failed to insert restart message in Supabase:', insErr);
+      }
+    } catch (err) {
+      console.error('Error clearing public chat in Supabase:', err);
+    }
+  }
+
   await logAdminAction(adminId, 'CLEAR_PUBLIC_CHAT', 'chat_message', 'public');
-  return { success: true };
+  return { success: true, message: 'Bate-papo geral limpo com sucesso.' };
 }

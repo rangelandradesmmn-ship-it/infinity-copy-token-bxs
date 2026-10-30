@@ -10,6 +10,7 @@ import {
   getLandingPageVersions,
   getAllUsers,
 } from '@/lib/dataService';
+import { initialLandingPageContent } from '@/data/defaultLandingPage';
 import { MasterEditor } from '@/components/admin/MasterEditor';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { Loader2, ArrowLeft } from 'lucide-react';
@@ -29,11 +30,12 @@ export default function AdminEditorPage() {
         getLandingPageVersions(),
         getAllUsers(),
       ]);
-      setContent(draftRes.content);
-      setVersions(vers);
-      setUsers(usrs);
+      setContent(draftRes?.content || initialLandingPageContent);
+      setVersions(vers || []);
+      setUsers(usrs || []);
     } catch (err) {
       console.error('Failed to load editor data:', err);
+      setContent(initialLandingPageContent);
     } finally {
       setLoading(false);
     }
@@ -41,13 +43,18 @@ export default function AdminEditorPage() {
 
   useEffect(() => {
     async function checkAuthAndLoad() {
-      const user = await getCurrentSessionUser();
-      if (!user || user.role !== 'admin') {
+      try {
+        const user = await getCurrentSessionUser();
+        if (!user || user.role !== 'admin') {
+          router.replace('/admin/login');
+          return;
+        }
+        setAuthorized(true);
+        await loadData();
+      } catch (err) {
+        console.error('Failed to authenticate in editor:', err);
         router.replace('/admin/login');
-        return;
       }
-      setAuthorized(true);
-      await loadData();
     }
     checkAuthAndLoad();
   }, [router]);

@@ -46,6 +46,7 @@ import {
   getAdminPresenceStatus,
   getActiveChatParticipants,
 } from '@/lib/dataService';
+import { renderTextWithLinks } from '@/components/landing/LandingChatWidget';
 
 interface AdminChatModerationProps {
   currentAdmin: UserWithSettings;
@@ -552,7 +553,7 @@ export function AdminChatModeration({ currentAdmin }: AdminChatModerationProps) 
                       </span>
                     </div>
 
-                    <p className="text-xs leading-relaxed break-words">{msg.content}</p>
+                    <div className="text-xs leading-relaxed break-words">{renderTextWithLinks(msg.content, 'text-purple-400 hover:text-purple-300 font-semibold underline underline-offset-2 break-all')}</div>
                   </div>
 
                   {/* Actions */}
@@ -700,7 +701,7 @@ export function AdminChatModeration({ currentAdmin }: AdminChatModerationProps) 
                               : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-none'
                           }`}
                         >
-                          {m.content}
+                          {renderTextWithLinks(m.content, 'text-purple-300 hover:text-purple-100 font-semibold underline underline-offset-2 break-all')}
                         </div>
 
                         {/* Reading Status Indicator */}

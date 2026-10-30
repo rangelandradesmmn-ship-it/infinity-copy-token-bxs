@@ -69,6 +69,57 @@ interface LandingChatWidgetProps {
   defaultOpen?: boolean;
 }
 
+export function renderTextWithLinks(text: string, linkClass?: string) {
+  if (!text) return null;
+
+  // Regex to match URLs starting with http://, https://, www., or common services like meet.google.com, wa.me, t.me
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|meet\.google\.com\/[^\s]+|wa\.me\/[^\s]+|t\.me\/[^\s]+)/gi;
+  const parts = text.split(urlRegex);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (!part) return null;
+
+        const isUrl = /(https?:\/\/[^\s]+|www\.[^\s]+|meet\.google\.com\/[^\s]+|wa\.me\/[^\s]+|t\.me\/[^\s]+)/i.test(part);
+
+        if (isUrl) {
+          // Strip any trailing punctuation (like ! ? . , ;)
+          const trailingMatch = part.match(/[.,!?;:]+$/);
+          const trailing = trailingMatch ? trailingMatch[0] : '';
+          const cleanUrl = trailing ? part.slice(0, -trailing.length) : part;
+
+          let href = cleanUrl;
+          if (!href.startsWith('http://') && !href.startsWith('https://')) {
+            href = `https://${href}`;
+          }
+
+          return (
+            <React.Fragment key={index}>
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={
+                  linkClass ||
+                  'text-amber-300 hover:text-amber-100 font-bold underline underline-offset-2 break-all transition-colors inline-flex items-center gap-0.5'
+                }
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span>{cleanUrl}</span>
+                <ExternalLink className="w-3 h-3 inline shrink-0 opacity-80 ml-0.5" />
+              </a>
+              {trailing}
+            </React.Fragment>
+          );
+        }
+
+        return <span key={index}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 export function LandingChatWidget({
   customSettings,
   currentUser: initialUser,
@@ -723,7 +774,10 @@ export function LandingChatWidget({
               <Pin className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
               <div className="flex-1 text-[11px] font-medium leading-relaxed">
                 <span className="font-bold text-amber-300 mr-1">[Fixado]:</span>
-                {pinnedMsg}
+                {renderTextWithLinks(
+                  pinnedMsg,
+                  'text-amber-300 hover:text-amber-100 font-bold underline underline-offset-2 break-all transition-colors inline-flex items-center gap-0.5'
+                )}
               </div>
             </div>
           )}
@@ -1074,7 +1128,12 @@ export function LandingChatWidget({
                           : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-none'
                       }`}
                     >
-                      {msg.content}
+                      {renderTextWithLinks(
+                        msg.content,
+                        isMe
+                          ? 'text-purple-100 hover:text-white font-semibold underline underline-offset-2 break-all inline-flex items-center gap-0.5'
+                          : 'text-purple-300 hover:text-purple-100 font-semibold underline underline-offset-2 break-all inline-flex items-center gap-0.5'
+                      )}
                     </div>
 
                     {/* Status for Private Messages */}

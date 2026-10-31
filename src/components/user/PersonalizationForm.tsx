@@ -12,6 +12,7 @@ import {
   isValidHttpsUrl,
   buildWhatsAppUrl,
   sanitizePhoneNumber,
+  cleanLocalPhoneNumber,
 } from '@/lib/security';
 import {
   User,
@@ -49,11 +50,10 @@ export function PersonalizationForm({ user, onSaved }: PersonalizationFormProps)
   const [urlError, setUrlError] = useState('');
 
   // Field 4: WhatsApp
-  const [countryCode, setCountryCode] = useState(
-    user.settings?.whatsapp_country_code || '+55'
-  );
+  const initialCountryCode = user.settings?.whatsapp_country_code || '+55';
+  const [countryCode, setCountryCode] = useState(initialCountryCode);
   const [whatsappNumber, setWhatsappNumber] = useState(
-    user.settings?.whatsapp_number || ''
+    cleanLocalPhoneNumber(initialCountryCode, user.settings?.whatsapp_number || '')
   );
   const [whatsappMessage, setWhatsappMessage] = useState(
     user.settings?.whatsapp_message || 'Olá! Vi sua página exclusiva e gostaria de mais informações.'
@@ -119,12 +119,13 @@ export function PersonalizationForm({ user, onSaved }: PersonalizationFormProps)
 
     setSaving(true);
     try {
+      const localCleanNumber = cleanLocalPhoneNumber(countryCode, whatsappNumber);
       const payload: AllowedUserPersonalization = {
         name: name.trim(),
         profile_image_url: profileImageUrl,
         registration_url: registrationUrl.trim(),
         whatsapp_country_code: countryCode,
-        whatsapp_number: sanitizePhoneNumber(countryCode, whatsappNumber),
+        whatsapp_number: localCleanNumber,
         whatsapp_message: whatsappMessage.trim(),
       };
 
@@ -132,6 +133,7 @@ export function PersonalizationForm({ user, onSaved }: PersonalizationFormProps)
 
       if (res.success) {
         setFeedback({ type: 'success', text: res.message });
+        setWhatsappNumber(localCleanNumber);
         onSaved({
           ...user,
           name: payload.name || user.name,
@@ -141,7 +143,7 @@ export function PersonalizationForm({ user, onSaved }: PersonalizationFormProps)
             profile_image_url: profileImageUrl,
             registration_url: payload.registration_url || '',
             whatsapp_country_code: countryCode,
-            whatsapp_number: payload.whatsapp_number || '',
+            whatsapp_number: localCleanNumber,
             whatsapp_message: payload.whatsapp_message || '',
             updated_at: new Date().toISOString(),
           },
@@ -343,7 +345,11 @@ export function PersonalizationForm({ user, onSaved }: PersonalizationFormProps)
             <select
               id="country-code-select"
               value={countryCode}
-              onChange={(e) => setCountryCode(e.target.value)}
+              onChange={(e) => {
+                const newCode = e.target.value;
+                setCountryCode(newCode);
+                setWhatsappNumber((prev) => cleanLocalPhoneNumber(newCode, prev));
+              }}
               className="w-full px-3 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-blue-500 text-sm"
             >
               <option value="+55">Brasil (+55)</option>
@@ -362,7 +368,10 @@ export function PersonalizationForm({ user, onSaved }: PersonalizationFormProps)
               id="whatsapp-num-input"
               type="tel"
               value={whatsappNumber}
-              onChange={(e) => setWhatsappNumber(e.target.value)}
+              onChange={(e) => {
+                const cleaned = cleanLocalPhoneNumber(countryCode, e.target.value);
+                setWhatsappNumber(cleaned);
+              }}
               placeholder="Ex: 11999998888"
               className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
             />

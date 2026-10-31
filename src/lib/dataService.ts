@@ -27,7 +27,7 @@ import {
   seedAuditLogs,
 } from '@/data/seedData';
 import { isSupabaseConfigured, supabase } from './supabase';
-import { generateSlug, isValidHttpsUrl, sanitizePhoneNumber } from './security';
+import { generateSlug, isValidHttpsUrl, sanitizePhoneNumber, cleanLocalPhoneNumber } from './security';
 
 const STORAGE_KEYS = {
   USERS: 'clonelp_users',
@@ -892,7 +892,7 @@ export async function updateAllowedUserPersonalization(
     if (payload.whatsapp_country_code !== undefined)
       settingsUpdate.whatsapp_country_code = payload.whatsapp_country_code.trim();
     if (payload.whatsapp_number !== undefined)
-      settingsUpdate.whatsapp_number = sanitizePhoneNumber(
+      settingsUpdate.whatsapp_number = cleanLocalPhoneNumber(
         payload.whatsapp_country_code || '+55',
         payload.whatsapp_number
       );
@@ -961,7 +961,7 @@ export async function updateAllowedUserPersonalization(
   if (payload.whatsapp_country_code !== undefined)
     current.whatsapp_country_code = payload.whatsapp_country_code.trim();
   if (payload.whatsapp_number !== undefined)
-    current.whatsapp_number = sanitizePhoneNumber(
+    current.whatsapp_number = cleanLocalPhoneNumber(
       payload.whatsapp_country_code || current.whatsapp_country_code,
       payload.whatsapp_number
     );

@@ -16,12 +16,38 @@ export function isValidHttpsUrl(urlString: string): boolean {
 }
 
 /**
- * Sanitizes phone number by keeping only digits and ensures proper international format
+ * Cleans and extracts the local phone number with DDD/area code, stripping redundant country codes.
+ */
+export function cleanLocalPhoneNumber(countryCode: string, number: string): string {
+  const cleanCode = (countryCode || '+55').replace(/\D/g, '');
+  let digits = (number || '').replace(/\D/g, '');
+  if (!digits) return '';
+
+  // Max local length by country (Brazil: 11, USA: 10, Portugal: 9, Spain: 9, UK: 11)
+  const maxLocalLength =
+    cleanCode === '1' ? 10 : cleanCode === '351' || cleanCode === '34' ? 9 : 11;
+
+  // Strip repeated country codes at start (e.g. 5555... or 555555...)
+  while (cleanCode && digits.startsWith(cleanCode) && digits.length > maxLocalLength) {
+    digits = digits.slice(cleanCode.length);
+  }
+
+  // If digits still starts with cleanCode and exceeds local length, strip one cleanCode
+  if (cleanCode && digits.startsWith(cleanCode) && digits.length > maxLocalLength) {
+    digits = digits.slice(cleanCode.length);
+  }
+
+  return digits;
+}
+
+/**
+ * Sanitizes phone number by keeping only digits and ensures proper international format without duplicate country codes.
  */
 export function sanitizePhoneNumber(countryCode: string, number: string): string {
   const cleanCode = (countryCode || '+55').replace(/\D/g, '');
-  const cleanNumber = (number || '').replace(/\D/g, '');
-  return `${cleanCode}${cleanNumber}`;
+  const localNumber = cleanLocalPhoneNumber(countryCode, number);
+  if (!localNumber) return '';
+  return `${cleanCode}${localNumber}`;
 }
 
 /**

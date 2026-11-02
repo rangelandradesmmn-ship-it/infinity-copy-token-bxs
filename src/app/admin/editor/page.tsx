@@ -7,6 +7,7 @@ import { LandingPageContent, LandingPageVersion, UserWithSettings } from '@/type
 import {
   getCurrentSessionUser,
   getDraftLandingPage,
+  getPublishedLandingPage,
   getLandingPageVersions,
   getAllUsers,
 } from '@/lib/dataService';
@@ -23,19 +24,19 @@ export default function AdminEditorPage() {
   const [users, setUsers] = useState<UserWithSettings[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadData = async () => {
+  const loadData = async (freshContent?: LandingPageContent) => {
     try {
       const [draftRes, vers, usrs] = await Promise.all([
         getDraftLandingPage(),
         getLandingPageVersions(),
         getAllUsers(),
       ]);
-      setContent(draftRes?.content || initialLandingPageContent);
+      setContent(freshContent || draftRes?.content || initialLandingPageContent);
       setVersions(vers || []);
       setUsers(usrs || []);
     } catch (err) {
       console.error('Failed to load editor data:', err);
-      setContent(initialLandingPageContent);
+      if (!freshContent) setContent(initialLandingPageContent);
     } finally {
       setLoading(false);
     }
@@ -91,8 +92,9 @@ export default function AdminEditorPage() {
             initialContent={content}
             versions={versions}
             testUsers={users}
-            onPublished={() => {
-              loadData();
+            onPublished={async () => {
+              const pub = await getPublishedLandingPage();
+              await loadData(pub.content);
             }}
           />
         </main>

@@ -118,7 +118,15 @@ export function sanitizeText(text: string): string {
  */
 export function formatVideoEmbedUrl(url: string): string {
   if (!url || typeof url !== 'string') return '';
-  const trimmed = url.trim();
+  let trimmed = url.trim();
+
+  // If user pasted an iframe embed snippet: extract src attribute
+  if (trimmed.includes('<iframe')) {
+    const srcMatch = trimmed.match(/src=["']([^"']+)["']/i);
+    if (srcMatch && srcMatch[1]) {
+      trimmed = srcMatch[1].trim();
+    }
+  }
 
   // 1. YouTube Shorts: youtube.com/shorts/<id>
   const shortsMatch = trimmed.match(/(?:youtube\.com|youtu\.be)\/shorts\/([a-zA-Z0-9_-]+)/i);
@@ -152,7 +160,13 @@ export function formatVideoEmbedUrl(url: string): string {
     return `https://www.youtube.com/embed/${youtuBeMatch[1]}?rel=0&modestbranding=1`;
   }
 
-  // 6. Vimeo
+  // 6. YouTube /v/<id> or /e/<id>
+  const vSlashMatch = trimmed.match(/youtube\.com\/(?:v|e)\/([a-zA-Z0-9_-]+)/i);
+  if (vSlashMatch && vSlashMatch[1]) {
+    return `https://www.youtube.com/embed/${vSlashMatch[1]}?rel=0&modestbranding=1`;
+  }
+
+  // 7. Vimeo
   const vimeoMatch = trimmed.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/i);
   if (vimeoMatch && vimeoMatch[1]) {
     return `https://player.vimeo.com/video/${vimeoMatch[1]}`;

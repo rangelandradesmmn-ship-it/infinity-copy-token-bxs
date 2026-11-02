@@ -14,6 +14,7 @@ import {
 } from '@/types';
 import { saveLandingPageDraft, publishLandingPage, normalizeLandingPageContent } from '@/lib/dataService';
 import { initialLandingPageContent } from '@/data/defaultLandingPage';
+import { VideoPlayer } from '@/components/ui/VideoPlayer';
 import { LivePreviewModal } from './LivePreviewModal';
 import { VersionHistoryModal } from './VersionHistoryModal';
 import {
@@ -159,6 +160,7 @@ export function MasterEditor({
       const res = await publishLandingPage(content, 'admin-uuid-0001');
       if (res.success) {
         setFeedback({ type: 'success', text: res.message });
+        setContent(content);
         onPublished(res.versionNumber);
         try {
           confetti({
@@ -848,8 +850,19 @@ export function MasterEditor({
           </div>
 
           {/* Main Video Settings */}
-          <div className="pt-6 border-t border-slate-800">
-            <h3 className="text-sm font-bold text-white mb-3">Vídeo Principal do Hero</h3>
+          <div className="pt-6 border-t border-slate-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-white">Vídeo Principal do Hero</h3>
+                <p className="text-xs text-slate-400">
+                  Vídeo de abertura em destaque (suporta YouTube normal, Shorts verticais 9:16 ou Vimeo).
+                </p>
+              </div>
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/30 font-semibold">
+                Sincronizado na Matriz e nos Clones
+              </span>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
@@ -869,14 +882,14 @@ export function MasterEditor({
                           id: prev.hero.mainVideo?.id || 'hero-vid',
                           title: prev.hero.mainVideo?.title || 'Apresentação Oficial',
                           aspectRatio: isShorts ? '9:16' : (prev.hero.mainVideo?.aspectRatio || '16:9'),
-                          badge: prev.hero.mainVideo?.badge || 'Oficial',
+                          badge: prev.hero.mainVideo?.badge || 'Assista ao Vídeo Oficial',
                           url: val,
                         },
                       },
                     }));
                   }}
                   placeholder="https://www.youtube.com/watch?v=... ou https://youtube.com/shorts/..."
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs"
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs font-mono"
                 />
               </div>
 
@@ -886,18 +899,22 @@ export function MasterEditor({
                 </label>
                 <select
                   value={content.hero.mainVideo?.aspectRatio || '16:9'}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const ratio = e.target.value as AspectRatio;
                     setContent((prev) => ({
                       ...prev,
                       hero: {
                         ...prev.hero,
                         mainVideo: {
-                          ...(prev.hero.mainVideo as VideoItem),
-                          aspectRatio: e.target.value as AspectRatio,
+                          id: prev.hero.mainVideo?.id || 'hero-vid',
+                          title: prev.hero.mainVideo?.title || 'Apresentação Oficial',
+                          badge: prev.hero.mainVideo?.badge || 'Assista ao Vídeo Oficial',
+                          url: prev.hero.mainVideo?.url || '',
+                          aspectRatio: ratio,
                         },
                       },
-                    }))
-                  }
+                    }));
+                  }}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs"
                 >
                   <option value="16:9">16:9 (Horizontal Widescreen)</option>
@@ -905,6 +922,23 @@ export function MasterEditor({
                 </select>
               </div>
             </div>
+
+            {/* Live Video Preview in Hero */}
+            {content.hero.mainVideo?.url && (
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                  Prévia do Player do Hero:
+                </span>
+                <div className="max-w-md mx-auto">
+                  <VideoPlayer
+                    url={content.hero.mainVideo.url}
+                    title={content.hero.mainVideo.title || 'Vídeo Hero'}
+                    aspectRatio={content.hero.mainVideo.aspectRatio || '16:9'}
+                    badge={content.hero.mainVideo.badge}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -993,11 +1027,15 @@ export function MasterEditor({
                       type="text"
                       value={vid.title}
                       onChange={(e) => {
-                        const updated = [...content.videosSection.videos];
-                        updated[idx].title = e.target.value;
+                        const newTitle = e.target.value;
                         setContent((prev) => ({
                           ...prev,
-                          videosSection: { ...prev.videosSection, videos: updated },
+                          videosSection: {
+                            ...prev.videosSection,
+                            videos: prev.videosSection.videos.map((v) =>
+                              v.id === vid.id ? { ...v, title: newTitle } : v
+                            ),
+                          },
                         }));
                       }}
                       className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs"
@@ -1014,18 +1052,24 @@ export function MasterEditor({
                       onChange={(e) => {
                         const val = e.target.value;
                         const isShorts = val.includes('/shorts/');
-                        const updated = [...content.videosSection.videos];
-                        updated[idx].url = val;
-                        if (isShorts && updated[idx].aspectRatio === '16:9') {
-                          updated[idx].aspectRatio = '9:16';
-                        }
                         setContent((prev) => ({
                           ...prev,
-                          videosSection: { ...prev.videosSection, videos: updated },
+                          videosSection: {
+                            ...prev.videosSection,
+                            videos: prev.videosSection.videos.map((v) =>
+                              v.id === vid.id
+                                ? {
+                                    ...v,
+                                    url: val,
+                                    aspectRatio: isShorts && v.aspectRatio === '16:9' ? '9:16' : v.aspectRatio,
+                                  }
+                                : v
+                            ),
+                          },
                         }));
                       }}
                       placeholder="https://youtube.com/shorts/... ou https://youtu.be/..."
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs font-mono"
                     />
                   </div>
 
@@ -1036,11 +1080,15 @@ export function MasterEditor({
                     <select
                       value={vid.aspectRatio}
                       onChange={(e) => {
-                        const updated = [...content.videosSection.videos];
-                        updated[idx].aspectRatio = e.target.value as AspectRatio;
+                        const newRatio = e.target.value as AspectRatio;
                         setContent((prev) => ({
                           ...prev,
-                          videosSection: { ...prev.videosSection, videos: updated },
+                          videosSection: {
+                            ...prev.videosSection,
+                            videos: prev.videosSection.videos.map((v) =>
+                              v.id === vid.id ? { ...v, aspectRatio: newRatio } : v
+                            ),
+                          },
                         }));
                       }}
                       className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs"
@@ -1050,6 +1098,21 @@ export function MasterEditor({
                     </select>
                   </div>
                 </div>
+
+                {/* Live Preview for this video */}
+                {vid.url && (
+                  <div className="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row items-center gap-3">
+                    <span className="text-[11px] font-semibold text-slate-400">Prévia do Vídeo:</span>
+                    <div className="w-full max-w-[240px]">
+                      <VideoPlayer
+                        url={vid.url}
+                        title={vid.title}
+                        aspectRatio={vid.aspectRatio}
+                        badge={vid.badge}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

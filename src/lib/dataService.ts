@@ -392,9 +392,11 @@ export async function getPublishedLandingPage(): Promise<{
       .from('landing_page_versions')
       .select('*')
       .eq('status', 'published')
+      .gt('version_number', 0)
+      .order('published_at', { ascending: false, nullsFirst: false })
       .order('version_number', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (!error && data && data.content_json) {
       return {
@@ -410,7 +412,12 @@ export async function getPublishedLandingPage(): Promise<{
   const versions = getLocalItem<LandingPageVersion[]>(STORAGE_KEYS.VERSIONS, seedVersions);
   const published = versions
     .filter((v) => v.status === 'published')
-    .sort((a, b) => b.version_number - a.version_number)[0];
+    .sort((a, b) => {
+      const timeA = new Date(a.published_at || a.created_at || 0).getTime();
+      const timeB = new Date(b.published_at || b.created_at || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return (b.version_number || 0) - (a.version_number || 0);
+    })[0];
 
   if (published) {
     return {
@@ -432,6 +439,9 @@ export async function getDraftLandingPage(): Promise<{
   versionId?: string;
   hasDraft: boolean;
 }> {
+  // Always fetch published first as reference
+  const published = await getPublishedLandingPage();
+
   if (isSupabaseConfigured() && supabase) {
     const { data } = await supabase
       .from('landing_page_versions')
@@ -439,14 +449,20 @@ export async function getDraftLandingPage(): Promise<{
       .eq('status', 'draft')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (data && data.content_json) {
-      return {
-        content: normalizeLandingPageContent(data.content_json),
-        versionId: data.id,
-        hasDraft: true,
-      };
+      const draftDate = new Date(data.created_at || 0).getTime();
+      const pubDate = new Date(published.publishedAt || 0).getTime();
+
+      // Only treat as draft if it was created AFTER the last publication!
+      if (draftDate > pubDate) {
+        return {
+          content: normalizeLandingPageContent(data.content_json),
+          versionId: data.id,
+          hasDraft: true,
+        };
+      }
     }
   }
 
@@ -455,11 +471,14 @@ export async function getDraftLandingPage(): Promise<{
   const versions = getLocalItem<LandingPageVersion[]>(STORAGE_KEYS.VERSIONS, seedVersions);
   const draft = versions.find((v) => v.status === 'draft');
   if (draft) {
-    return { content: normalizeLandingPageContent(draft.content_json), versionId: draft.id, hasDraft: true };
+    const draftDate = new Date(draft.created_at || 0).getTime();
+    const pubDate = new Date(published.publishedAt || 0).getTime();
+    if (draftDate > pubDate) {
+      return { content: normalizeLandingPageContent(draft.content_json), versionId: draft.id, hasDraft: true };
+    }
   }
 
   // Fallback to published
-  const published = await getPublishedLandingPage();
   return { content: published.content, hasDraft: false };
 }
 
@@ -467,13 +486,17 @@ export async function saveLandingPageDraft(
   content: LandingPageContent,
   adminId: string
 ): Promise<{ success: boolean; message: string }> {
+  const now = new Date().toISOString();
+
   if (isSupabaseConfigured() && supabase) {
-    // Check if draft exists
+    // Check if draft exists (use maybeSingle to avoid multiple rows error)
     const { data: existingDraft } = await supabase
       .from('landing_page_versions')
       .select('id')
       .eq('status', 'draft')
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (existingDraft) {
       const { error: updateErr } = await supabase
@@ -481,7 +504,7 @@ export async function saveLandingPageDraft(
         .update({
           content_json: content,
           created_by: adminId,
-          created_at: new Date().toISOString(),
+          created_at: now,
         })
         .eq('id', existingDraft.id);
 
@@ -489,27 +512,40 @@ export async function saveLandingPageDraft(
         return { success: false, message: updateErr.message };
       }
     } else {
-      // Get highest version
-      const { data: highest } = await supabase
-        .from('landing_page_versions')
-        .select('version_number')
-        .order('version_number', { ascending: false })
-        .limit(1)
-        .single();
-      const nextVer = (highest?.version_number || 1) + 1;
-
       const { error: insertErr } = await supabase.from('landing_page_versions').insert({
         id: `ver-draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        version_number: nextVer,
+        version_number: 0,
         content_json: content,
         status: 'draft',
         created_by: adminId,
+        created_at: now,
       });
 
       if (insertErr) {
         return { success: false, message: insertErr.message };
       }
     }
+
+    // Keep localStorage in sync
+    try {
+      initLocalDatabase();
+      const versions = getLocalItem<LandingPageVersion[]>(STORAGE_KEYS.VERSIONS, seedVersions);
+      const draftIndex = versions.findIndex((v) => v.status === 'draft');
+      if (draftIndex >= 0) {
+        versions[draftIndex].content_json = content;
+        versions[draftIndex].created_at = now;
+      } else {
+        versions.push({
+          id: `ver-draft-${Date.now()}`,
+          version_number: 0,
+          content_json: content,
+          status: 'draft',
+          created_by: adminId,
+          created_at: now,
+        });
+      }
+      setLocalItem(STORAGE_KEYS.VERSIONS, versions);
+    } catch {}
 
     await logAdminAction(adminId, 'SAVE_DRAFT', 'landing_page_version', 'draft', {
       note: 'Rascunho da Landing Page salvo.',
@@ -525,16 +561,15 @@ export async function saveLandingPageDraft(
 
   if (draftIndex >= 0) {
     versions[draftIndex].content_json = content;
-    versions[draftIndex].created_at = new Date().toISOString();
+    versions[draftIndex].created_at = now;
   } else {
-    const highestVer = Math.max(...versions.map((v) => v.version_number), 0);
     versions.push({
       id: `ver-${Date.now()}`,
-      version_number: highestVer + 1,
+      version_number: 0,
       content_json: content,
       status: 'draft',
       created_by: adminId,
-      created_at: new Date().toISOString(),
+      created_at: now,
     });
   }
 
@@ -553,18 +588,32 @@ export async function publishLandingPage(
   const publishedAt = new Date().toISOString();
 
   if (isSupabaseConfigured() && supabase) {
-    // Get highest version number
+    // Get highest version number among published versions
     const { data: highest } = await supabase
       .from('landing_page_versions')
       .select('version_number')
+      .eq('status', 'published')
       .order('version_number', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     const newVersionNumber = (highest?.version_number || 0) + 1;
     const newVersionId = `ver-${newVersionNumber}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-    // Delete or update existing draft
+    // Clear/neutralize existing drafts so they don't override published content
+    try {
+      await supabase
+        .from('landing_page_versions')
+        .update({
+          status: 'published',
+          version_number: 0,
+          published_at: '2020-01-01T00:00:00Z',
+        })
+        .eq('status', 'draft');
+    } catch {
+      // non-blocking
+    }
+
     try {
       await supabase.from('landing_page_versions').delete().eq('status', 'draft');
     } catch {
@@ -588,6 +637,23 @@ export async function publishLandingPage(
     if (error) {
       return { success: false, versionNumber: 0, message: error.message };
     }
+
+    // Dual-sync to local storage
+    try {
+      initLocalDatabase();
+      let versions = getLocalItem<LandingPageVersion[]>(STORAGE_KEYS.VERSIONS, seedVersions);
+      versions = versions.filter((v) => v.status !== 'draft');
+      versions.push({
+        id: newVersionId,
+        version_number: newVersionNumber,
+        content_json: content,
+        status: 'published',
+        created_by: adminId,
+        created_at: publishedAt,
+        published_at: publishedAt,
+      });
+      setLocalItem(STORAGE_KEYS.VERSIONS, versions);
+    } catch {}
 
     await logAdminAction(adminId, 'PUBLISH_LANDING_PAGE', 'landing_page_version', data.id, {
       version_number: newVersionNumber,
@@ -641,6 +707,8 @@ export async function getLandingPageVersions(): Promise<LandingPageVersion[]> {
     const { data } = await supabase
       .from('landing_page_versions')
       .select('*')
+      .eq('status', 'published')
+      .gt('version_number', 0)
       .order('version_number', { ascending: false });
     if (data) {
       return (data as LandingPageVersion[]).map((v) => ({

@@ -853,12 +853,14 @@ export function MasterEditor({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  URL do Vídeo (YouTube ou Vimeo)
+                  URL do Vídeo (YouTube, Shorts ou Vimeo)
                 </label>
                 <input
                   type="url"
                   value={content.hero.mainVideo?.url || ''}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const isShorts = val.includes('/shorts/');
                     setContent((prev) => ({
                       ...prev,
                       hero: {
@@ -866,14 +868,14 @@ export function MasterEditor({
                         mainVideo: {
                           id: prev.hero.mainVideo?.id || 'hero-vid',
                           title: prev.hero.mainVideo?.title || 'Apresentação Oficial',
-                          aspectRatio: prev.hero.mainVideo?.aspectRatio || '16:9',
+                          aspectRatio: isShorts ? '9:16' : (prev.hero.mainVideo?.aspectRatio || '16:9'),
                           badge: prev.hero.mainVideo?.badge || 'Oficial',
-                          url: e.target.value,
+                          url: val,
                         },
                       },
-                    }))
-                  }
-                  placeholder="https://www.youtube.com/watch?v=..."
+                    }));
+                  }}
+                  placeholder="https://www.youtube.com/watch?v=... ou https://youtube.com/shorts/..."
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs"
                 />
               </div>
@@ -1004,19 +1006,25 @@ export function MasterEditor({
 
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                      URL (YouTube / Vimeo)
+                      URL (YouTube / Shorts / Vimeo)
                     </label>
                     <input
                       type="url"
                       value={vid.url}
                       onChange={(e) => {
+                        const val = e.target.value;
+                        const isShorts = val.includes('/shorts/');
                         const updated = [...content.videosSection.videos];
-                        updated[idx].url = e.target.value;
+                        updated[idx].url = val;
+                        if (isShorts && updated[idx].aspectRatio === '16:9') {
+                          updated[idx].aspectRatio = '9:16';
+                        }
                         setContent((prev) => ({
                           ...prev,
                           videosSection: { ...prev.videosSection, videos: updated },
                         }));
                       }}
+                      placeholder="https://youtube.com/shorts/... ou https://youtu.be/..."
                       className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs"
                     />
                   </div>

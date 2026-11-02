@@ -111,3 +111,52 @@ export function sanitizeText(text: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+/**
+ * Converts various video platform URLs (YouTube Shorts, Watch, youtu.be, Live, Vimeo)
+ * into a safe, valid embeddable iframe URL.
+ */
+export function formatVideoEmbedUrl(url: string): string {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+
+  // 1. YouTube Shorts: youtube.com/shorts/<id>
+  const shortsMatch = trimmed.match(/(?:youtube\.com|youtu\.be)\/shorts\/([a-zA-Z0-9_-]+)/i);
+  if (shortsMatch && shortsMatch[1]) {
+    return `https://www.youtube.com/embed/${shortsMatch[1]}?rel=0&modestbranding=1`;
+  }
+
+  // 2. YouTube Live: youtube.com/live/<id>
+  const liveMatch = trimmed.match(/youtube\.com\/live\/([a-zA-Z0-9_-]+)/i);
+  if (liveMatch && liveMatch[1]) {
+    return `https://www.youtube.com/embed/${liveMatch[1]}?rel=0&modestbranding=1`;
+  }
+
+  // 3. YouTube Embed: youtube.com/embed/<id>
+  const embedMatch = trimmed.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/i);
+  if (embedMatch && embedMatch[1]) {
+    return `https://www.youtube.com/embed/${embedMatch[1]}?rel=0&modestbranding=1`;
+  }
+
+  // 4. YouTube Watch: youtube.com/watch?v=<id>
+  if (trimmed.includes('youtube.com/watch')) {
+    const vMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]+)/i);
+    if (vMatch && vMatch[1]) {
+      return `https://www.youtube.com/embed/${vMatch[1]}?rel=0&modestbranding=1`;
+    }
+  }
+
+  // 5. YouTu.be short link: youtu.be/<id>
+  const youtuBeMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]+)/i);
+  if (youtuBeMatch && youtuBeMatch[1]) {
+    return `https://www.youtube.com/embed/${youtuBeMatch[1]}?rel=0&modestbranding=1`;
+  }
+
+  // 6. Vimeo
+  const vimeoMatch = trimmed.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/i);
+  if (vimeoMatch && vimeoMatch[1]) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  }
+
+  return trimmed;
+}

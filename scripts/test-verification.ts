@@ -13,6 +13,7 @@ import {
   buildWhatsAppUrl,
   generateSlug,
   validateImageFile,
+  formatVideoEmbedUrl,
 } from '../src/lib/security';
 import {
   authenticateUser,
@@ -689,6 +690,37 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
   assert(
     !loginBatch1.success && !loginBatch2.success,
     '81. Autenticação de qualquer usuário excluído em lote é bloqueada'
+  );
+
+  console.log('\n--- Módulo 22: Compatibilidade de Vídeos & YouTube Shorts ---');
+  // 82. YouTube Shorts simples
+  const shorts1 = formatVideoEmbedUrl('https://youtube.com/shorts/7CeGk2r6Wkg');
+  assert(
+    shorts1 === 'https://www.youtube.com/embed/7CeGk2r6Wkg?rel=0&modestbranding=1',
+    '82. YouTube Shorts simples é convertido para URL embed válida'
+  );
+
+  // 83. YouTube Shorts com query params
+  const shorts2 = formatVideoEmbedUrl('https://www.youtube.com/shorts/7CeGk2r6Wkg?feature=share');
+  assert(
+    shorts2 === 'https://www.youtube.com/embed/7CeGk2r6Wkg?rel=0&modestbranding=1',
+    '83. YouTube Shorts com parâmetros de compartilhamento é convertido com sucesso'
+  );
+
+  // 84. YouTube Watch e youtu.be
+  const watchUrl = formatVideoEmbedUrl('https://www.youtube.com/watch?v=7CeGk2r6Wkg');
+  const youtuBeUrl = formatVideoEmbedUrl('https://youtu.be/7CeGk2r6Wkg?si=pCQt1hKxWwY1s1UB');
+  assert(
+    watchUrl === 'https://www.youtube.com/embed/7CeGk2r6Wkg?rel=0&modestbranding=1' &&
+    youtuBeUrl === 'https://www.youtube.com/embed/7CeGk2r6Wkg?rel=0&modestbranding=1',
+    '84. Links tradicionais watch e youtu.be mantêm conversão precisa'
+  );
+
+  // 85. Vimeo
+  const vimeoUrl = formatVideoEmbedUrl('https://vimeo.com/123456789');
+  assert(
+    vimeoUrl === 'https://player.vimeo.com/video/123456789',
+    '85. Links do Vimeo continuam convertidos para player oficial'
   );
 
   // Limpeza de teardown dos testes: remove mensagens e presenças temporárias do banco

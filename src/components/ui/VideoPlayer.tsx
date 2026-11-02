@@ -3,6 +3,7 @@
 import React from 'react';
 import { AspectRatio } from '@/types';
 import { Play } from 'lucide-react';
+import { formatVideoEmbedUrl } from '@/lib/security';
 
 interface VideoPlayerProps {
   url: string;
@@ -19,30 +20,7 @@ export function VideoPlayer({
   badge,
   className = '',
 }: VideoPlayerProps) {
-  // Convert standard YouTube watch URL to embed URL
-  const getEmbedUrl = (rawUrl: string): string => {
-    if (!rawUrl) return '';
-    try {
-      if (rawUrl.includes('youtube.com/watch')) {
-        const urlObj = new URL(rawUrl);
-        const v = urlObj.searchParams.get('v');
-        return v ? `https://www.youtube.com/embed/${v}?rel=0&modestbranding=1` : rawUrl;
-      }
-      if (rawUrl.includes('youtu.be/')) {
-        const id = rawUrl.split('youtu.be/')[1]?.split('?')[0];
-        return id ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1` : rawUrl;
-      }
-      if (rawUrl.includes('vimeo.com/')) {
-        const id = rawUrl.split('vimeo.com/')[1]?.split('?')[0];
-        return id ? `https://player.vimeo.com/video/${id}` : rawUrl;
-      }
-      return rawUrl;
-    } catch {
-      return rawUrl;
-    }
-  };
-
-  const embedUrl = getEmbedUrl(url);
+  const embedUrl = formatVideoEmbedUrl(url);
   const isVertical = aspectRatio === '9:16';
 
   return (

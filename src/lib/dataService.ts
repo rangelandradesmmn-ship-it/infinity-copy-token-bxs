@@ -1299,6 +1299,252 @@ export async function deleteUserPermanently(
   };
 }
 
+export async function deleteMultipleUsersPermanently(
+  userIds: string[],
+  adminId: string
+): Promise<{ success: boolean; count: number; message: string }> {
+  if (!userIds || userIds.length === 0) {
+    return { success: false, count: 0, message: 'Nenhum usuário informado para exclusão.' };
+  }
+
+  // Deduplicate and filter out empty
+  const rawUniqueIds = Array.from(new Set(userIds.filter(Boolean)));
+
+  // Protect master admins
+  const protectedIds = new Set(['user-rangel-0001', 'admin-uuid-0001', adminId]);
+  const candidateIds = rawUniqueIds.filter((id) => !protectedIds.has(id));
+
+  if (candidateIds.length === 0) {
+    return {
+      success: false,
+      count: 0,
+      message: 'Nenhum usuário elegível para exclusão. Contas de administradores não podem ser excluídas.',
+    };
+  }
+
+  // Identify users from DB / local
+  let usersToDelete: UserProfile[] = [];
+
+  if (isSupabaseConfigured() && supabase) {
+    const { data: dbProfiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', candidateIds);
+
+    if (dbProfiles) {
+      usersToDelete = dbProfiles.filter(
+        (p) =>
+          p.role !== 'admin' &&
+          p.email.toLowerCase() !== 'rangelandradesmmn@gmail.com' &&
+          p.email.toLowerCase() !== 'admin@saas.com'
+      ) as UserProfile[];
+    }
+  }
+
+  // Also check local database
+  initLocalDatabase();
+  const localUsers = getLocalItem<UserProfile[]>(STORAGE_KEYS.USERS, seedUsers);
+  for (const cid of candidateIds) {
+    if (!usersToDelete.some((u) => u.id === cid)) {
+      const found = localUsers.find(
+        (u) =>
+          u.id === cid &&
+          u.role !== 'admin' &&
+          u.email.toLowerCase() !== 'rangelandradesmmn@gmail.com' &&
+          u.email.toLowerCase() !== 'admin@saas.com'
+      );
+      if (found) usersToDelete.push(found);
+    }
+  }
+
+  if (usersToDelete.length === 0) {
+    return {
+      success: false,
+      count: 0,
+      message: 'Nenhum parceiro válido encontrado para exclusão.',
+    };
+  }
+
+  const validIds = usersToDelete.map((u) => u.id);
+  const validSlugs = usersToDelete.map((u) => u.slug).filter(Boolean);
+  const validEmails = usersToDelete.map((u) => u.email).filter(Boolean);
+  const validNames = usersToDelete.map((u) => u.name);
+
+  // 1. Purge across Supabase
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      // 1.1. Delete chat messages
+      await supabase
+        .from('chat_messages')
+        .delete()
+        .in('sender_id', validIds);
+
+      await supabase
+        .from('chat_messages')
+        .delete()
+        .in('recipient_id', validIds);
+
+      // 1.2. Delete chat participants
+      await supabase
+        .from('chat_participants')
+        .delete()
+        .in('id', validIds);
+
+      // 1.3. Delete chat restrictions
+      await supabase
+        .from('chat_restrictions')
+        .delete()
+        .in('user_id', validIds);
+
+      // 1.4. Delete landing events
+      await supabase
+        .from('landing_events')
+        .delete()
+        .in('user_id', validIds);
+
+      for (const slug of validSlugs) {
+        await supabase
+          .from('landing_events')
+          .delete()
+          .eq('page_path', `/p/${slug}`);
+      }
+
+      // 1.5. Delete user landing settings
+      await supabase
+        .from('user_landing_settings')
+        .delete()
+        .in('user_id', validIds);
+
+      // Scrub settings in case RLS blocked delete
+      await supabase
+        .from('user_landing_settings')
+        .update({
+          profile_image_url: '',
+          registration_url: '',
+          whatsapp_country_code: '',
+          whatsapp_number: '',
+          whatsapp_message: '',
+        })
+        .in('user_id', validIds);
+
+      // 1.6. Delete profiles
+      await supabase
+        .from('profiles')
+        .delete()
+        .in('id', validIds);
+
+      // If any profiles still exist due to RLS, scrub them
+      const { data: stillExisting } = await supabase
+        .from('profiles')
+        .select('id, name, email, slug')
+        .in('id', validIds);
+
+      if (stillExisting && stillExisting.length > 0) {
+        for (const p of stillExisting) {
+          await supabase
+            .from('profiles')
+            .update({
+              name: `[Excluído] ${p.name}`,
+              email: `deleted_${Date.now()}_${p.email}`,
+              slug: `deleted_${Date.now()}_${p.slug}`,
+              status: 'blocked',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', p.id);
+        }
+      }
+    } catch (dbErr) {
+      console.error('Error during batch user deletion cleanup:', dbErr);
+    }
+  }
+
+  // 2. Purge across Local Storage and In-Memory Fallback
+  const validIdsSet = new Set(validIds);
+  const validSlugsSet = new Set(validSlugs.map((s) => `/p/${s}`));
+  const validEmailsSet = new Set(validEmails.map((e) => e.toLowerCase()));
+
+  // Users
+  const remainingUsers = localUsers.filter(
+    (u) =>
+      !validIdsSet.has(u.id) &&
+      !validEmailsSet.has(u.email.toLowerCase()) &&
+      !u.email.startsWith('deleted_') &&
+      !u.slug.startsWith('deleted_')
+  );
+  setLocalItem(STORAGE_KEYS.USERS, remainingUsers);
+
+  // Settings
+  const localSettings = getLocalItem<Record<string, UserLandingSettings>>(
+    STORAGE_KEYS.SETTINGS,
+    seedUserSettings
+  );
+  for (const id of validIds) {
+    delete localSettings[id];
+  }
+  setLocalItem(STORAGE_KEYS.SETTINGS, localSettings);
+
+  // Passwords
+  const localPasswords = getLocalItem<Record<string, string>>(
+    STORAGE_KEYS.PASSWORDS,
+    defaultPasswords
+  );
+  for (const id of validIds) {
+    delete localPasswords[id];
+  }
+  setLocalItem(STORAGE_KEYS.PASSWORDS, localPasswords);
+
+  // Events & Metrics
+  const localEvents = getLocalItem<LandingEvent[]>(STORAGE_KEYS.EVENTS, seedEvents);
+  const remainingEvents = localEvents.filter(
+    (e) => (!e.user_id || !validIdsSet.has(e.user_id)) && (!e.page_path || !validSlugsSet.has(e.page_path))
+  );
+  setLocalItem(STORAGE_KEYS.EVENTS, remainingEvents);
+
+  // Chat Messages
+  const localChatMessages = getLocalItem<ChatMessage[]>(STORAGE_KEYS.CHAT_MESSAGES, []);
+  const remainingChatMessages = localChatMessages.filter(
+    (m) => !validIdsSet.has(m.sender_id) && (!m.recipient_id || !validIdsSet.has(m.recipient_id))
+  );
+  setLocalItem(STORAGE_KEYS.CHAT_MESSAGES, remainingChatMessages);
+
+  // Chat Restrictions
+  const localRestrictions = getLocalItem<UserChatRestriction[]>(
+    STORAGE_KEYS.CHAT_RESTRICTIONS,
+    []
+  );
+  const remainingRestrictions = localRestrictions.filter((r) => !validIdsSet.has(r.userId));
+  setLocalItem(STORAGE_KEYS.CHAT_RESTRICTIONS, remainingRestrictions);
+
+  // Chat Participants
+  const localParticipants = getLocalItem<ChatParticipant[]>(
+    STORAGE_KEYS.CHAT_PARTICIPANTS,
+    []
+  );
+  const remainingParticipants = localParticipants.filter((p) => !validIdsSet.has(p.id));
+  setLocalItem(STORAGE_KEYS.CHAT_PARTICIPANTS, remainingParticipants);
+
+  // Reset session user if it matches any deleted user
+  const currentSessionUserId = getLocalItem<string>(STORAGE_KEYS.SESSION_USER, '');
+  if (validIdsSet.has(currentSessionUserId)) {
+    setLocalItem(STORAGE_KEYS.SESSION_USER, 'user-rangel-0001');
+  }
+
+  // 3. Audit Log
+  await logAdminAction(adminId, 'DELETE_USERS_BATCH', 'profiles', validIds.join(','), {
+    deletedCount: validIds.length,
+    deletedUserIds: validIds,
+    deletedNames: validNames,
+    deletedEmails: validEmails,
+    deletedSlugs: validSlugs,
+  });
+
+  return {
+    success: true,
+    count: validIds.length,
+    message: `${validIds.length} ${validIds.length === 1 ? 'parceiro foi excluído' : 'parceiros foram excluídos'} permanentemente.`,
+  };
+}
+
 export async function logAdminAction(
   adminId: string,
   action: string,

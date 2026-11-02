@@ -39,6 +39,8 @@ export function AdminUsersTable({
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [passwordModalUser, setPasswordModalUser] = useState<UserWithSettings | null>(null);
   const [deleteModalUser, setDeleteModalUser] = useState<UserWithSettings | null>(null);
+  const [batchDeleteModalUsers, setBatchDeleteModalUsers] = useState<UserWithSettings[] | null>(null);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
 
   const filtered = users.filter((u) => {
     const matchesSearch =
@@ -51,6 +53,46 @@ export function AdminUsersTable({
 
     return matchesSearch && matchesRole && matchesStatus;
   });
+
+  const selectableUsers = filtered.filter(
+    (u) =>
+      u.role !== 'admin' &&
+      u.id !== currentAdminId &&
+      u.email.toLowerCase() !== 'rangelandradesmmn@gmail.com' &&
+      u.email.toLowerCase() !== 'admin@saas.com'
+  );
+
+  const isAllSelected =
+    selectableUsers.length > 0 &&
+    selectableUsers.every((u) => selectedUserIds.has(u.id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedUserIds(new Set());
+    } else {
+      setSelectedUserIds(new Set(selectableUsers.map((u) => u.id)));
+    }
+  };
+
+  const toggleSelectUser = (userId: string) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedUserIds(new Set());
+  };
+
+  const handleOpenBatchDelete = () => {
+    const selected = users.filter((u) => selectedUserIds.has(u.id));
+    if (selected.length > 0) {
+      setBatchDeleteModalUsers(selected);
+    }
+  };
 
   const handleToggleStatus = async (user: UserWithSettings) => {
     if (user.role === 'admin') return; // Cannot block an admin
@@ -141,11 +183,66 @@ export function AdminUsersTable({
         </div>
       </div>
 
+      {/* Bulk Action Bar */}
+      {selectedUserIds.size > 0 && (
+        <div className="mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-purple-950/90 via-slate-900 to-red-950/70 border border-purple-500/40 flex flex-wrap items-center justify-between gap-3 shadow-xl animate-fadeIn">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-xl bg-purple-600/30 border border-purple-500/40 text-purple-300 flex items-center justify-center font-bold text-xs">
+              {selectedUserIds.size}
+            </span>
+            <div>
+              <span className="text-xs font-bold text-white block">
+                {selectedUserIds.size}{' '}
+                {selectedUserIds.size === 1
+                  ? 'parceiro selecionado'
+                  : 'parceiros selecionados'}
+              </span>
+              <span className="text-[11px] text-slate-400 block">
+                Selecione ações coletivas para os parceiros marcados
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors border border-slate-700"
+            >
+              Desmarcar todos
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenBatchDelete}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-bold text-xs shadow-lg shadow-red-950/50 transition-colors flex items-center gap-2"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Excluir Selecionados ({selectedUserIds.size})</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider font-semibold">
+              <th className="py-3 px-3 w-10 text-center">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={toggleSelectAll}
+                  aria-label="Selecionar todos os parceiros visíveis"
+                  className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-purple-600 focus:ring-purple-500 cursor-pointer accent-purple-600 align-middle"
+                  title={
+                    isAllSelected
+                      ? 'Desmarcar todos'
+                      : 'Selecionar todos os parceiros visíveis'
+                  }
+                />
+              </th>
               <th className="py-3 px-4">Usuário</th>
               <th className="py-3 px-4">Tipo / Papel</th>
               <th className="py-3 px-4">URL Exclusiva</th>
@@ -158,10 +255,33 @@ export function AdminUsersTable({
             {filtered.map((user) => {
               const isAdmin = user.role === 'admin';
               const isBlocked = user.status === 'blocked';
+              const isSelected = selectedUserIds.has(user.id);
               const publicUrl = `/p/${user.slug}`;
 
               return (
-                <tr key={user.id} className="hover:bg-slate-800/40 transition-colors">
+                <tr
+                  key={user.id}
+                  className={`transition-colors ${
+                    isSelected
+                      ? 'bg-purple-950/30 hover:bg-purple-950/40 border-l-2 border-l-purple-500'
+                      : 'hover:bg-slate-800/40'
+                  }`}
+                >
+                  {/* Select Checkbox */}
+                  <td className="py-4 px-3 w-10 text-center">
+                    {!isAdmin ? (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectUser(user.id)}
+                        aria-label={`Selecionar ${user.name}`}
+                        className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-purple-600 focus:ring-purple-500 cursor-pointer accent-purple-600 align-middle"
+                      />
+                    ) : (
+                      <span className="text-slate-600 text-xs select-none">•</span>
+                    )}
+                  </td>
+
                   {/* User Avatar & Name */}
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
@@ -329,7 +449,7 @@ export function AdminUsersTable({
 
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-slate-400 text-xs">
+                <td colSpan={7} className="py-8 text-center text-slate-400 text-xs">
                   Nenhum usuário encontrado com os filtros selecionados.
                 </td>
               </tr>
@@ -347,13 +467,34 @@ export function AdminUsersTable({
         onPasswordChanged={onUserStatusChanged}
       />
 
-      {/* Delete User Modal */}
+      {/* Single Delete User Modal */}
       <DeleteUserModal
         user={deleteModalUser}
         currentAdminId={currentAdminId}
         isOpen={Boolean(deleteModalUser)}
         onClose={() => setDeleteModalUser(null)}
-        onUserDeleted={onUserStatusChanged}
+        onUserDeleted={() => {
+          if (deleteModalUser) {
+            setSelectedUserIds((prev) => {
+              const next = new Set(prev);
+              next.delete(deleteModalUser.id);
+              return next;
+            });
+          }
+          onUserStatusChanged();
+        }}
+      />
+
+      {/* Batch Delete Users Modal */}
+      <DeleteUserModal
+        users={batchDeleteModalUsers}
+        currentAdminId={currentAdminId}
+        isOpen={Boolean(batchDeleteModalUsers)}
+        onClose={() => setBatchDeleteModalUsers(null)}
+        onUserDeleted={() => {
+          clearSelection();
+          onUserStatusChanged();
+        }}
       />
     </div>
   );

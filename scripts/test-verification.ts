@@ -21,6 +21,7 @@ import {
   getAllUsers,
   getUserBySlug,
   deleteUserPermanently,
+  deleteMultipleUsersPermanently,
   getAdminDashboardMetrics,
   saveChatVisitorAuth,
   getChatVisitorAuth,
@@ -649,6 +650,45 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
   assert(
     !loginAttempt.success,
     '77. Autenticação do usuário excluído é rejeitada com sucesso'
+  );
+
+  console.log('\n--- Módulo 21: Exclusão Permanente de Múltiplos Usuários em Lote ---');
+  // 78. Cria múltiplos usuários temporários para validação da exclusão em lote
+  const batchEmail1 = `batch.del.1.${Date.now()}@infinitycopy.com`;
+  const batchEmail2 = `batch.del.2.${Date.now()}@infinitycopy.com`;
+  const batchSlug1 = `batch-slug-1-${Date.now()}`;
+  const batchSlug2 = `batch-slug-2-${Date.now()}`;
+
+  const reg1 = await registerNewUser('Usuario Lote 1', batchEmail1, batchSlug1, 'senha123456');
+  const reg2 = await registerNewUser('Usuario Lote 2', batchEmail2, batchSlug2, 'senha123456');
+  assert(reg1.success && reg2.success, '78. Múltiplos usuários temporários criados para teste de lote');
+
+  const id1 = reg1.user!.id;
+  const id2 = reg2.user!.id;
+
+  // 79. Executa exclusão em lote incluindo id do admin (para validar proteção) e ids dos parceiros
+  const batchDelResult = await deleteMultipleUsersPermanently([id1, id2, 'user-rangel-0001'], 'user-rangel-0001');
+  assert(
+    batchDelResult.success && batchDelResult.count === 2,
+    '79. Exclusão em lote executada protegendo o Super Admin e deletando 2 parceiros'
+  );
+
+  // 80. Verifica que nenhum dos usuários excluídos em lote permanece na listagem
+  const usersAfterBatch = await getAllUsers();
+  const foundAny = usersAfterBatch.some((u) => u.id === id1 || u.id === id2 || u.email === batchEmail1 || u.email === batchEmail2);
+  const foundSlug1 = await getUserBySlug(batchSlug1);
+  const foundSlug2 = await getUserBySlug(batchSlug2);
+  assert(
+    !foundAny && foundSlug1 === null && foundSlug2 === null,
+    '80. Todos os usuários do lote foram eliminados do sistema e seus slugs desativados'
+  );
+
+  // 81. Tentativa de login de qualquer usuário do lote é bloqueada
+  const loginBatch1 = await authenticateUser(batchEmail1, 'senha123456');
+  const loginBatch2 = await authenticateUser(batchEmail2, 'senha123456');
+  assert(
+    !loginBatch1.success && !loginBatch2.success,
+    '81. Autenticação de qualquer usuário excluído em lote é bloqueada'
   );
 
   // Limpeza de teardown dos testes: remove mensagens e presenças temporárias do banco

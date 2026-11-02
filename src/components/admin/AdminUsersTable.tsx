@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { UserWithSettings, UserStatus } from '@/types';
 import { toggleUserStatus, setCurrentSessionUserId } from '@/lib/dataService';
 import { ChangePasswordModal } from '@/components/admin/ChangePasswordModal';
+import { DeleteUserModal } from '@/components/admin/DeleteUserModal';
 import {
   Search,
   ExternalLink,
@@ -17,6 +18,7 @@ import {
   LogIn,
   KeyRound,
   Shield,
+  Trash2,
 } from 'lucide-react';
 
 interface AdminUsersTableProps {
@@ -36,6 +38,7 @@ export function AdminUsersTable({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [passwordModalUser, setPasswordModalUser] = useState<UserWithSettings | null>(null);
+  const [deleteModalUser, setDeleteModalUser] = useState<UserWithSettings | null>(null);
 
   const filtered = users.filter((u) => {
     const matchesSearch =
@@ -289,18 +292,30 @@ export function AdminUsersTable({
                       )}
 
                       {!isAdmin ? (
-                        <button
-                          type="button"
-                          disabled={updatingId === user.id}
-                          onClick={() => handleToggleStatus(user)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                            isBlocked
-                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                              : 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20'
-                          }`}
-                        >
-                          {isBlocked ? 'Desbloquear' : 'Bloquear'}
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            disabled={updatingId === user.id}
+                            onClick={() => handleToggleStatus(user)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                              isBlocked
+                                ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                                : 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20'
+                            }`}
+                          >
+                            {isBlocked ? 'Desbloquear' : 'Bloquear'}
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={updatingId === user.id}
+                            onClick={() => setDeleteModalUser(user)}
+                            className="p-2 rounded-lg bg-red-950/70 hover:bg-red-900 border border-red-800 text-red-400 hover:text-white transition-colors"
+                            title={`Excluir permanentemente ${user.name}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
                       ) : (
                         <span className="text-[11px] text-purple-400/80 px-2 py-1 font-mono">
                           Master
@@ -330,6 +345,15 @@ export function AdminUsersTable({
         isOpen={Boolean(passwordModalUser)}
         onClose={() => setPasswordModalUser(null)}
         onPasswordChanged={onUserStatusChanged}
+      />
+
+      {/* Delete User Modal */}
+      <DeleteUserModal
+        user={deleteModalUser}
+        currentAdminId={currentAdminId}
+        isOpen={Boolean(deleteModalUser)}
+        onClose={() => setDeleteModalUser(null)}
+        onUserDeleted={onUserStatusChanged}
       />
     </div>
   );

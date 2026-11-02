@@ -97,6 +97,9 @@ CREATE POLICY "profiles_insert_all" ON public.profiles FOR INSERT WITH CHECK (tr
 DROP POLICY IF EXISTS "profiles_update_all" ON public.profiles;
 CREATE POLICY "profiles_update_all" ON public.profiles FOR UPDATE USING (true);
 
+DROP POLICY IF EXISTS "profiles_delete_all" ON public.profiles;
+CREATE POLICY "profiles_delete_all" ON public.profiles FOR DELETE USING (true);
+
 -- Permissões para user_landing_settings
 DROP POLICY IF EXISTS "settings_select_all" ON public.user_landing_settings;
 CREATE POLICY "settings_select_all" ON public.user_landing_settings FOR SELECT USING (true);
@@ -106,6 +109,9 @@ CREATE POLICY "settings_insert_all" ON public.user_landing_settings FOR INSERT W
 
 DROP POLICY IF EXISTS "settings_update_all" ON public.user_landing_settings;
 CREATE POLICY "settings_update_all" ON public.user_landing_settings FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "settings_delete_all" ON public.user_landing_settings;
+CREATE POLICY "settings_delete_all" ON public.user_landing_settings FOR DELETE USING (true);
 
 -- Permissões para landing_page_versions
 DROP POLICY IF EXISTS "versions_select_all" ON public.landing_page_versions;
@@ -126,6 +132,9 @@ CREATE POLICY "events_select_all" ON public.landing_events FOR SELECT USING (tru
 
 DROP POLICY IF EXISTS "events_insert_all" ON public.landing_events;
 CREATE POLICY "events_insert_all" ON public.landing_events FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "events_delete_all" ON public.landing_events;
+CREATE POLICY "events_delete_all" ON public.landing_events FOR DELETE USING (true);
 
 -- Permissões para admin_audit_logs
 DROP POLICY IF EXISTS "audit_select_all" ON public.admin_audit_logs;

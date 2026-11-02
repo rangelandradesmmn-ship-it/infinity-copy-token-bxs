@@ -19,6 +19,8 @@ import {
   registerNewUser,
   updateUserPassword,
   getAllUsers,
+  getUserBySlug,
+  deleteUserPermanently,
   getAdminDashboardMetrics,
   saveChatVisitorAuth,
   getChatVisitorAuth,
@@ -606,6 +608,47 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
   assert(
     clearedAuth === null,
     '72. Visitante encerra sessão e limpa credenciais com sucesso'
+  );
+
+  console.log('\n--- Módulo 20: Exclusão Permanente de Usuários no Super Admin ---');
+  // 73. Super Admin não pode excluir a conta master
+  const cantDeleteMaster = await deleteUserPermanently('user-rangel-0001', 'user-rangel-0001');
+  assert(
+    !cantDeleteMaster.success,
+    '73. Super Admin é impedido de excluir a própria conta Master'
+  );
+
+  // 74. Cadastra usuário temporário para validação da exclusão completa
+  const tempEmail = `del.teste.${Date.now()}@infinitycopy.com`;
+  const tempSlug = `del-slug-${Date.now()}`;
+  const regDelUser = await registerNewUser(
+    'Usuario Deletavel',
+    tempEmail,
+    tempSlug,
+    'senha123456'
+  );
+  assert(regDelUser.success && !!regDelUser.user, '74. Usuário temporário criado para teste de exclusão');
+
+  const delUserId = regDelUser.user!.id;
+
+  // 75. Executa exclusão permanente
+  const delResult = await deleteUserPermanently(delUserId, 'user-rangel-0001');
+  assert(delResult.success, '75. Exclusão permanente executada com sucesso');
+
+  // 76. Verifica se usuário foi removido de getAllUsers e getUserBySlug
+  const usersAfterDelete = await getAllUsers();
+  const stillInList = usersAfterDelete.some((u) => u.id === delUserId || u.email === tempEmail);
+  const slugAfterDelete = await getUserBySlug(tempSlug);
+  assert(
+    !stillInList && slugAfterDelete === null,
+    '76. Usuário excluído foi completamente eliminado da listagem e slug desativado'
+  );
+
+  // 77. Tentativa de login com usuário excluído é bloqueada
+  const loginAttempt = await authenticateUser(tempEmail, 'senha123456');
+  assert(
+    !loginAttempt.success,
+    '77. Autenticação do usuário excluído é rejeitada com sucesso'
   );
 
   // Limpeza de teardown dos testes: remove mensagens e presenças temporárias do banco

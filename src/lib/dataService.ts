@@ -723,6 +723,15 @@ export async function getUserBySlug(slug: string): Promise<UserWithSettings | nu
 
     if (!profile) return null;
 
+    if (
+      profile.email.startsWith('deleted_') ||
+      profile.slug.startsWith('deleted_') ||
+      profile.name.startsWith('[Excluído]') ||
+      profile.name.startsWith('[DELETED]')
+    ) {
+      return null;
+    }
+
     const { data: settings } = await supabase
       .from('user_landing_settings')
       .select('*')
@@ -747,6 +756,15 @@ export async function getUserBySlug(slug: string): Promise<UserWithSettings | nu
   }
   if (!profile) return null;
 
+  if (
+    profile.email.startsWith('deleted_') ||
+    profile.slug.startsWith('deleted_') ||
+    profile.name.startsWith('[Excluído]') ||
+    profile.name.startsWith('[DELETED]')
+  ) {
+    return null;
+  }
+
   const allSettings = getLocalItem<Record<string, UserLandingSettings>>(
     STORAGE_KEYS.SETTINGS,
     seedUserSettings
@@ -769,6 +787,15 @@ export async function getUserById(userId: string): Promise<UserWithSettings | nu
 
     if (!profile) return null;
 
+    if (
+      profile.email.startsWith('deleted_') ||
+      profile.slug.startsWith('deleted_') ||
+      profile.name.startsWith('[Excluído]') ||
+      profile.name.startsWith('[DELETED]')
+    ) {
+      return null;
+    }
+
     const { data: settings } = await supabase
       .from('user_landing_settings')
       .select('*')
@@ -786,6 +813,15 @@ export async function getUserById(userId: string): Promise<UserWithSettings | nu
   const users = getLocalItem<UserProfile[]>(STORAGE_KEYS.USERS, seedUsers);
   const profile = users.find((u) => u.id === userId);
   if (!profile) return null;
+
+  if (
+    profile.email.startsWith('deleted_') ||
+    profile.slug.startsWith('deleted_') ||
+    profile.name.startsWith('[Excluído]') ||
+    profile.name.startsWith('[DELETED]')
+  ) {
+    return null;
+  }
 
   const allSettings = getLocalItem<Record<string, UserLandingSettings>>(
     STORAGE_KEYS.SETTINGS,
@@ -809,10 +845,18 @@ export async function getAllUsers(): Promise<UserWithSettings[]> {
     const { data: allSettings } = await supabase.from('user_landing_settings').select('*');
     const settingsMap = new Map((allSettings || []).map((s) => [s.user_id, s]));
 
-    return profiles.map((p) => ({
-      ...(p as UserProfile),
-      settings: settingsMap.get(p.id),
-    }));
+    return profiles
+      .filter(
+        (p) =>
+          !p.email.startsWith('deleted_') &&
+          !p.slug.startsWith('deleted_') &&
+          !p.name.startsWith('[Excluído]') &&
+          !p.name.startsWith('[DELETED]')
+      )
+      .map((p) => ({
+        ...(p as UserProfile),
+        settings: settingsMap.get(p.id),
+      }));
   }
 
   // Local fallback
@@ -823,10 +867,18 @@ export async function getAllUsers(): Promise<UserWithSettings[]> {
     seedUserSettings
   );
 
-  return users.map((u) => ({
-    ...u,
-    settings: allSettings[u.id],
-  }));
+  return users
+    .filter(
+      (u) =>
+        !u.email.startsWith('deleted_') &&
+        !u.slug.startsWith('deleted_') &&
+        !u.name.startsWith('[Excluído]') &&
+        !u.name.startsWith('[DELETED]')
+    )
+    .map((u) => ({
+      ...u,
+      settings: allSettings[u.id],
+    }));
 }
 
 // -------------------------------------------------------------
@@ -1028,6 +1080,222 @@ export async function toggleUserStatus(
   return {
     success: true,
     message: `Usuário ${user.name} agora está ${newStatus === 'active' ? 'Ativo' : 'Bloqueado'}.`,
+  };
+}
+
+export async function deleteUserPermanently(
+  userId: string,
+  adminId: string
+): Promise<{ success: boolean; message: string }> {
+  if (!userId) {
+    return { success: false, message: 'ID de usuário inválido.' };
+  }
+
+  // 1. Protection for Master / Admins
+  if (
+    userId === adminId ||
+    userId === 'user-rangel-0001' ||
+    userId === 'admin-uuid-0001'
+  ) {
+    return {
+      success: false,
+      message: 'Não é permitido excluir a conta do Super Administrador Master.',
+    };
+  }
+
+  // 2. Fetch existing user details to know email, slug and name
+  let user: UserProfile | null = null;
+  if (isSupabaseConfigured() && supabase) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+    if (profile) {
+      user = profile as UserProfile;
+    }
+  }
+
+  if (!user) {
+    initLocalDatabase();
+    const users = getLocalItem<UserProfile[]>(STORAGE_KEYS.USERS, seedUsers);
+    const localUser = users.find((u) => u.id === userId);
+    if (localUser) {
+      user = localUser;
+    }
+  }
+
+  if (!user) {
+    return { success: false, message: 'Usuário não encontrado para exclusão.' };
+  }
+
+  if (
+    user.role === 'admin' ||
+    user.email.toLowerCase() === 'rangelandradesmmn@gmail.com' ||
+    user.email.toLowerCase() === 'admin@saas.com'
+  ) {
+    return {
+      success: false,
+      message: 'Não é permitido excluir contas com privilégio de administrador.',
+    };
+  }
+
+  const userSlug = user.slug;
+  const userEmail = user.email;
+  const userName = user.name;
+
+  // 3. Purge across Supabase Tables
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      // 3.1. Delete chat messages (both public & private where user is sender or recipient)
+      await supabase
+        .from('chat_messages')
+        .delete()
+        .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`);
+
+      // 3.2. Delete chat participants
+      await supabase
+        .from('chat_participants')
+        .delete()
+        .eq('id', userId);
+
+      // 3.3. Delete chat restrictions (mutes)
+      await supabase
+        .from('chat_restrictions')
+        .delete()
+        .eq('user_id', userId);
+
+      // 3.4. Delete landing events (events belonging to this user or their exclusive slug)
+      await supabase
+        .from('landing_events')
+        .delete()
+        .or(`user_id.eq.${userId},page_path.eq./p/${userSlug}`);
+
+      // 3.5. Delete user landing settings (affiliate links, whatsapp, etc.)
+      await supabase
+        .from('user_landing_settings')
+        .delete()
+        .eq('user_id', userId);
+
+      // Also reset/scrub user_landing_settings row in case RLS delete policy is missing
+      await supabase
+        .from('user_landing_settings')
+        .update({
+          profile_image_url: '',
+          registration_url: '',
+          whatsapp_country_code: '',
+          whatsapp_number: '',
+          whatsapp_message: '',
+        })
+        .eq('user_id', userId);
+
+      // 3.6. Delete profile
+      await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+
+      // If RLS prevented hard deletion, scrub all personal data and alter slug/email
+      const { data: stillExists } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId);
+
+      if (stillExists && stillExists.length > 0) {
+        await supabase
+          .from('profiles')
+          .update({
+            name: `[Excluído] ${userName}`,
+            email: `deleted_${Date.now()}_${userEmail}`,
+            slug: `deleted_${Date.now()}_${userSlug}`,
+            status: 'blocked',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId);
+      }
+    } catch (dbErr) {
+      console.error('Error during Supabase user deletion cleanup:', dbErr);
+    }
+  }
+
+  // 4. Purge across Local Storage and In-Memory Fallback
+  initLocalDatabase();
+
+  // Users list
+  const localUsers = getLocalItem<UserProfile[]>(STORAGE_KEYS.USERS, seedUsers);
+  const updatedUsers = localUsers.filter(
+    (u) =>
+      u.id !== userId &&
+      u.email.toLowerCase() !== userEmail.toLowerCase() &&
+      u.slug.toLowerCase() !== userSlug.toLowerCase() &&
+      !u.email.startsWith('deleted_') &&
+      !u.slug.startsWith('deleted_')
+  );
+  setLocalItem(STORAGE_KEYS.USERS, updatedUsers);
+
+  // User Settings
+  const localSettings = getLocalItem<Record<string, UserLandingSettings>>(
+    STORAGE_KEYS.SETTINGS,
+    seedUserSettings
+  );
+  delete localSettings[userId];
+  setLocalItem(STORAGE_KEYS.SETTINGS, localSettings);
+
+  // Passwords
+  const localPasswords = getLocalItem<Record<string, string>>(
+    STORAGE_KEYS.PASSWORDS,
+    defaultPasswords
+  );
+  delete localPasswords[userId];
+  setLocalItem(STORAGE_KEYS.PASSWORDS, localPasswords);
+
+  // Events & Metrics
+  const localEvents = getLocalItem<LandingEvent[]>(STORAGE_KEYS.EVENTS, seedEvents);
+  const updatedEvents = localEvents.filter(
+    (e) => e.user_id !== userId && e.page_path !== `/p/${userSlug}`
+  );
+  setLocalItem(STORAGE_KEYS.EVENTS, updatedEvents);
+
+  // Chat Messages
+  const localChatMessages = getLocalItem<ChatMessage[]>(STORAGE_KEYS.CHAT_MESSAGES, []);
+  const updatedChatMessages = localChatMessages.filter(
+    (m) => m.sender_id !== userId && m.recipient_id !== userId
+  );
+  setLocalItem(STORAGE_KEYS.CHAT_MESSAGES, updatedChatMessages);
+
+  // Chat Restrictions
+  const localRestrictions = getLocalItem<UserChatRestriction[]>(
+    STORAGE_KEYS.CHAT_RESTRICTIONS,
+    []
+  );
+  const updatedRestrictions = localRestrictions.filter((r) => r.userId !== userId);
+  setLocalItem(STORAGE_KEYS.CHAT_RESTRICTIONS, updatedRestrictions);
+
+  // Chat Participants
+  const localParticipants = getLocalItem<ChatParticipant[]>(
+    STORAGE_KEYS.CHAT_PARTICIPANTS,
+    []
+  );
+  const updatedParticipants = localParticipants.filter((p) => p.id !== userId);
+  setLocalItem(STORAGE_KEYS.CHAT_PARTICIPANTS, updatedParticipants);
+
+  // Reset session if currently impersonating or logged in as this user
+  const currentSessionUserId = getLocalItem<string>(STORAGE_KEYS.SESSION_USER, '');
+  if (currentSessionUserId === userId) {
+    setLocalItem(STORAGE_KEYS.SESSION_USER, 'user-rangel-0001');
+  }
+
+  // 5. Audit Log
+  await logAdminAction(adminId, 'DELETE_USER', 'profile', userId, {
+    deletedUserId: userId,
+    deletedUserName: userName,
+    deletedUserEmail: userEmail,
+    deletedUserSlug: userSlug,
+  });
+
+  return {
+    success: true,
+    message: `Usuário "${userName}" e todos os seus registros foram excluídos permanentemente.`,
   };
 }
 

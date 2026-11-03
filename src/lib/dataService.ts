@@ -1695,12 +1695,15 @@ export async function getUserMetrics(userId: string): Promise<UserMetrics> {
   if (isSupabaseConfigured() && supabase) {
     const { data } = await supabase
       .from('landing_events')
-      .select('event_type')
+      .select('event_type, page_path, metadata')
       .eq('user_id', userId);
 
-    const views = (data || []).filter((e) => e.event_type === 'page_view').length;
-    const regClicks = (data || []).filter((e) => e.event_type === 'registration_click').length;
-    const waClicks = (data || []).filter((e) => e.event_type === 'whatsapp_click').length;
+    const validEvents = (data || []).filter(
+      (e: any) => e.page_path !== '/chat' && !e.metadata?.is_chat_presence
+    );
+    const views = validEvents.filter((e: any) => e.event_type === 'page_view').length;
+    const regClicks = validEvents.filter((e: any) => e.event_type === 'registration_click').length;
+    const waClicks = validEvents.filter((e: any) => e.event_type === 'whatsapp_click').length;
     const ctr = views > 0 ? Number(((regClicks / views) * 100).toFixed(1)) : 0;
 
     return {
@@ -1713,7 +1716,9 @@ export async function getUserMetrics(userId: string): Promise<UserMetrics> {
 
   initLocalDatabase();
   const events = getLocalItem<LandingEvent[]>(STORAGE_KEYS.EVENTS, seedEvents);
-  const userEvents = events.filter((e) => e.user_id === userId);
+  const userEvents = events.filter(
+    (e) => e.user_id === userId && e.page_path !== '/chat' && !e.metadata?.is_chat_presence
+  );
 
   const views = userEvents.filter((e) => e.event_type === 'page_view').length;
   const regClicks = userEvents.filter((e) => e.event_type === 'registration_click').length;
@@ -1747,17 +1752,22 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
     allEvents = getLocalItem<LandingEvent[]>(STORAGE_KEYS.EVENTS, seedEvents);
   }
 
-  const totalViews = allEvents.filter((e) => e.event_type === 'page_view').length;
-  const totalRegistrationClicks = allEvents.filter(
+  // Filter landing events strictly for landing page visits (exclude internal chat presence heartbeats)
+  const landingEvents = allEvents.filter(
+    (e) => e.page_path !== '/chat' && !e.metadata?.is_chat_presence
+  );
+
+  const totalViews = landingEvents.filter((e) => e.event_type === 'page_view').length;
+  const totalRegistrationClicks = landingEvents.filter(
     (e) => e.event_type === 'registration_click'
   ).length;
-  const totalWhatsappClicks = allEvents.filter((e) => e.event_type === 'whatsapp_click').length;
+  const totalWhatsappClicks = landingEvents.filter((e) => e.event_type === 'whatsapp_click').length;
   const globalCtr =
     totalViews > 0 ? Number(((totalRegistrationClicks / totalViews) * 100).toFixed(1)) : 0;
 
   // Rank top users by views and clicks
   const topUsers = regularUsers.map((user) => {
-    const userEvents = allEvents.filter((e) => e.user_id === user.id);
+    const userEvents = landingEvents.filter((e) => e.user_id === user.id);
     const views = userEvents.filter((e) => e.event_type === 'page_view').length;
     const regClicks = userEvents.filter((e) => e.event_type === 'registration_click').length;
     const waClicks = userEvents.filter((e) => e.event_type === 'whatsapp_click').length;
@@ -1777,7 +1787,7 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
     globalCtr,
     topUsers,
     recentUsers: regularUsers.slice(0, 5),
-    recentEvents: allEvents.slice(0, 10),
+    recentEvents: landingEvents.slice(0, 10),
   };
 }
 

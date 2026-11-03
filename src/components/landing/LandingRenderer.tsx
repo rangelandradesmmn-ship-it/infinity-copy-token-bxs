@@ -77,6 +77,21 @@ export function LandingRenderer({
   // Page path for telemetry
   const pagePath = user ? `/p/${user.slug}` : '/';
 
+  // Get or create unique visitor session ID
+  const getVisitorSessionId = useCallback((): string => {
+    if (typeof window === 'undefined') return '';
+    try {
+      let vid = localStorage.getItem('clonelp_visitor_id');
+      if (!vid) {
+        vid = `v_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        localStorage.setItem('clonelp_visitor_id', vid);
+      }
+      return vid;
+    } catch {
+      return '';
+    }
+  }, []);
+
   // 3. Track page_view event on mount
   useEffect(() => {
     if (isPreview) return;
@@ -85,12 +100,13 @@ export function LandingRenderer({
       user_id: user?.id || null,
       event_type: 'page_view',
       page_path: pagePath,
+      session_id: getVisitorSessionId(),
       metadata: {
         slug: user?.slug || 'master',
         referrer: typeof document !== 'undefined' ? document.referrer : '',
       },
     });
-  }, [user, isPreview, pagePath]);
+  }, [user, isPreview, pagePath, getVisitorSessionId]);
 
   // 4. Track registration click
   const handleRegistrationClick = useCallback(() => {
@@ -99,11 +115,12 @@ export function LandingRenderer({
       user_id: user?.id || null,
       event_type: 'registration_click',
       page_path: pagePath,
+      session_id: getVisitorSessionId(),
       metadata: {
         target_url: registrationUrl,
       },
     });
-  }, [user, isPreview, pagePath, registrationUrl]);
+  }, [user, isPreview, pagePath, registrationUrl, getVisitorSessionId]);
 
   // 5. Track WhatsApp click
   const handleWhatsAppClick = useCallback(() => {
@@ -112,11 +129,12 @@ export function LandingRenderer({
       user_id: user?.id || null,
       event_type: 'whatsapp_click',
       page_path: pagePath,
+      session_id: getVisitorSessionId(),
       metadata: {
         target_url: whatsAppUrl,
       },
     });
-  }, [user, isPreview, pagePath, whatsAppUrl]);
+  }, [user, isPreview, pagePath, whatsAppUrl, getVisitorSessionId]);
 
   return (
     <div

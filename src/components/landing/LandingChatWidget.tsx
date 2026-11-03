@@ -426,8 +426,8 @@ export function LandingChatWidget({
       setAuthError('Por favor, informe um e-mail válido.');
       return;
     }
-    if (cleanPhone.length < 10) {
-      setAuthError('Por favor, informe um WhatsApp válido com DDD (mínimo 10 dígitos).');
+    if (cleanPhone.length < 8) {
+      setAuthError('Por favor, informe um WhatsApp válido (mínimo 8 dígitos).');
       return;
     }
 

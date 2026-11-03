@@ -14,6 +14,7 @@ import {
 } from '@/types';
 import { saveLandingPageDraft, publishLandingPage, normalizeLandingPageContent } from '@/lib/dataService';
 import { initialLandingPageContent } from '@/data/defaultLandingPage';
+import { COUNTRY_OPTIONS, cleanLocalPhoneNumber } from '@/lib/security';
 import { VideoPlayer } from '@/components/ui/VideoPlayer';
 import { LivePreviewModal } from './LivePreviewModal';
 import { VersionHistoryModal } from './VersionHistoryModal';
@@ -2101,20 +2102,53 @@ export function MasterEditor({
               <label className="block text-xs font-semibold text-slate-300 mb-1">
                 WhatsApp Padrão da Matriz
               </label>
-              <input
-                type="tel"
-                value={content.defaultSettings.whatsappNumber}
-                onChange={(e) =>
-                  setContent((prev) => ({
-                    ...prev,
-                    defaultSettings: {
-                      ...prev.defaultSettings,
-                      whatsappNumber: e.target.value,
-                    },
-                  }))
-                }
-                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs"
-              />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div>
+                  <select
+                    value={content.defaultSettings.whatsappCountryCode || '+55'}
+                    onChange={(e) => {
+                      const newCountry = e.target.value;
+                      const cleaned = cleanLocalPhoneNumber(newCountry, content.defaultSettings.whatsappNumber || '');
+                      setContent((prev) => ({
+                        ...prev,
+                        defaultSettings: {
+                          ...prev.defaultSettings,
+                          whatsappCountryCode: newCountry,
+                          whatsappNumber: cleaned,
+                        },
+                      }));
+                    }}
+                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500"
+                  >
+                    {COUNTRY_OPTIONS.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <input
+                    type="tel"
+                    value={content.defaultSettings.whatsappNumber}
+                    onChange={(e) => {
+                      const code = content.defaultSettings.whatsappCountryCode || '+55';
+                      const cleaned = cleanLocalPhoneNumber(code, e.target.value);
+                      setContent((prev) => ({
+                        ...prev,
+                        defaultSettings: {
+                          ...prev.defaultSettings,
+                          whatsappNumber: cleaned,
+                        },
+                      }));
+                    }}
+                    placeholder={
+                      COUNTRY_OPTIONS.find((c) => c.code === (content.defaultSettings.whatsappCountryCode || '+55'))?.placeholder || 'Ex: 11999998888'
+                    }
+                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>

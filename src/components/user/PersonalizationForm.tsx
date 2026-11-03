@@ -13,6 +13,7 @@ import {
   buildWhatsAppUrl,
   sanitizePhoneNumber,
   cleanLocalPhoneNumber,
+  COUNTRY_OPTIONS,
 } from '@/lib/security';
 import {
   User,
@@ -352,11 +353,11 @@ export function PersonalizationForm({ user, onSaved }: PersonalizationFormProps)
               }}
               className="w-full px-3 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-blue-500 text-sm"
             >
-              <option value="+55">Brasil (+55)</option>
-              <option value="+1">Estados Unidos (+1)</option>
-              <option value="+351">Portugal (+351)</option>
-              <option value="+34">Espanha (+34)</option>
-              <option value="+44">Reino Unido (+44)</option>
+              {COUNTRY_OPTIONS.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -372,7 +373,7 @@ export function PersonalizationForm({ user, onSaved }: PersonalizationFormProps)
                 const cleaned = cleanLocalPhoneNumber(countryCode, e.target.value);
                 setWhatsappNumber(cleaned);
               }}
-              placeholder="Ex: 11999998888"
+              placeholder={COUNTRY_OPTIONS.find((c) => c.code === countryCode)?.placeholder || 'Ex: 11999998888'}
               className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
             />
           </div>

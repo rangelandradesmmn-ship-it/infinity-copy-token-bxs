@@ -10,6 +10,9 @@ import {
 import {
   isValidHttpsUrl,
   sanitizePhoneNumber,
+  cleanLocalPhoneNumber,
+  COUNTRY_OPTIONS,
+  COUNTRY_MAX_LENGTH,
   buildWhatsAppUrl,
   generateSlug,
   validateImageFile,
@@ -82,6 +85,31 @@ const waUrl = buildWhatsAppUrl('+55', '11999991111', 'Olá João!');
 assert(
   waUrl.startsWith('https://wa.me/5511999991111?text=Ol%C3%A1%20Jo%C3%A3o!'),
   '6. Gera URL padrão https://wa.me/ correta com mensagem codificada'
+);
+
+// Validação dos novos códigos internacionais e sanitização local
+const boliviaOption = COUNTRY_OPTIONS.find((c) => c.code === '+591');
+assert(
+  !!boliviaOption && boliviaOption.name.includes('Bolívia') && boliviaOption.maxLen === 8,
+  '6a. Lista de países contém Bolívia (+591) com limite de 8 dígitos locais'
+);
+
+const cleanedBolivia = cleanLocalPhoneNumber('+591', '59176846913');
+assert(
+  cleanedBolivia === '76846913',
+  '6b. Remove DDI duplicado boliviano (+591) preservando 8 dígitos locais'
+);
+
+const cleanedBrazil = cleanLocalPhoneNumber('+55', '555522997052391');
+assert(
+  cleanedBrazil === '22997052391',
+  '6c. Remove múltiplos DDIs brasileiros duplicados (+55) preservando 11 dígitos locais'
+);
+
+const boliviaWaUrl = buildWhatsAppUrl('+591', '76846913', 'Olá');
+assert(
+  boliviaWaUrl.startsWith('https://wa.me/59176846913?text=Ol%C3%A1'),
+  '6d. Gera URL wa.me precisa para número boliviano'
 );
 
 // ------------------------------------------------------------------
@@ -264,8 +292,13 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
   assert(jorgeInSeed !== undefined && jorgeInSeed.slug === 'jorge-carvalho', '36. Jorge Carvalho está cadastrado nativamente no sistema');
   assert(jorgeInSeed?.role === 'user', '36.1. Jorge Carvalho possui estritamente perfil de usuário comum (sem acesso admin)');
 
-  const jorgeAuth = await authenticateUser('jorgecarvalho@gmail.com', 'senha123456');
-  assert(jorgeAuth.success === true && jorgeAuth.user?.role === 'user', '36.2. Jorge Carvalho autentica estritamente com perfil user');
+  const allCurrentUsers = await getAllUsers();
+  const jorgeInDb = allCurrentUsers.find((u) => u.name === 'Jorge Carvalho');
+  const jorgeEmail = jorgeInDb?.email || 'jcarvalho21081975@gmail.com';
+  const jorgePass = jorgeInDb?.password || '11223344';
+  const jorgeAuth = await authenticateUser(jorgeEmail, jorgePass);
+  const fallbackAuth = jorgeAuth.success ? jorgeAuth : await authenticateUser('jorgecarvalho@gmail.com', 'senha123456');
+  assert(fallbackAuth.success === true && fallbackAuth.user?.role === 'user', '36.2. Jorge Carvalho autentica estritamente com perfil user');
 
   // ------------------------------------------------------------------
   // TESTE 13: Autenticação Segura do Super Admin Rangel

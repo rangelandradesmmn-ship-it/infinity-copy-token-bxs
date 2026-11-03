@@ -15,6 +15,67 @@ export function isValidHttpsUrl(urlString: string): boolean {
   }
 }
 
+export interface CountryOption {
+  code: string;
+  name: string;
+  maxLen: number;
+  placeholder: string;
+}
+
+export const COUNTRY_OPTIONS: CountryOption[] = [
+  { code: '+55', name: 'Brasil (+55)', maxLen: 11, placeholder: 'Ex: 11999998888' },
+  { code: '+591', name: 'Bolívia (+591)', maxLen: 8, placeholder: 'Ex: 76846913' },
+  { code: '+1', name: 'Estados Unidos / Canadá (+1)', maxLen: 10, placeholder: 'Ex: 2025550143' },
+  { code: '+351', name: 'Portugal (+351)', maxLen: 9, placeholder: 'Ex: 912345678' },
+  { code: '+34', name: 'Espanha (+34)', maxLen: 9, placeholder: 'Ex: 612345678' },
+  { code: '+54', name: 'Argentina (+54)', maxLen: 10, placeholder: 'Ex: 91123456789' },
+  { code: '+595', name: 'Paraguai (+595)', maxLen: 9, placeholder: 'Ex: 981234567' },
+  { code: '+598', name: 'Uruguai (+598)', maxLen: 8, placeholder: 'Ex: 99123456' },
+  { code: '+56', name: 'Chile (+56)', maxLen: 9, placeholder: 'Ex: 912345678' },
+  { code: '+51', name: 'Peru (+51)', maxLen: 9, placeholder: 'Ex: 912345678' },
+  { code: '+57', name: 'Colômbia (+57)', maxLen: 10, placeholder: 'Ex: 3001234567' },
+  { code: '+52', name: 'México (+52)', maxLen: 10, placeholder: 'Ex: 5512345678' },
+  { code: '+593', name: 'Equador (+593)', maxLen: 9, placeholder: 'Ex: 991234567' },
+  { code: '+58', name: 'Venezuela (+58)', maxLen: 10, placeholder: 'Ex: 4121234567' },
+  { code: '+44', name: 'Reino Unido (+44)', maxLen: 11, placeholder: 'Ex: 7911123456' },
+  { code: '+39', name: 'Itália (+39)', maxLen: 10, placeholder: 'Ex: 3123456789' },
+  { code: '+33', name: 'França (+33)', maxLen: 9, placeholder: 'Ex: 612345678' },
+  { code: '+49', name: 'Alemanha (+49)', maxLen: 11, placeholder: 'Ex: 15123456789' },
+  { code: '+41', name: 'Suíça (+41)', maxLen: 9, placeholder: 'Ex: 781234567' },
+  { code: '+81', name: 'Japão (+81)', maxLen: 10, placeholder: 'Ex: 9012345678' },
+  { code: '+244', name: 'Angola (+244)', maxLen: 9, placeholder: 'Ex: 923123456' },
+  { code: '+258', name: 'Moçambique (+258)', maxLen: 9, placeholder: 'Ex: 841234567' },
+  { code: '+61', name: 'Austrália (+61)', maxLen: 9, placeholder: 'Ex: 412345678' },
+  { code: '+971', name: 'Emirados Árabes (+971)', maxLen: 9, placeholder: 'Ex: 501234567' },
+];
+
+export const COUNTRY_MAX_LENGTH: Record<string, number> = {
+  '55': 11,
+  '591': 8,
+  '1': 10,
+  '351': 9,
+  '34': 9,
+  '54': 10,
+  '595': 9,
+  '598': 8,
+  '56': 9,
+  '51': 9,
+  '57': 10,
+  '52': 10,
+  '593': 9,
+  '58': 10,
+  '44': 11,
+  '39': 10,
+  '33': 9,
+  '49': 11,
+  '41': 9,
+  '81': 10,
+  '244': 9,
+  '258': 9,
+  '61': 9,
+  '971': 9,
+};
+
 /**
  * Cleans and extracts the local phone number with DDD/area code, stripping redundant country codes.
  */
@@ -23,11 +84,9 @@ export function cleanLocalPhoneNumber(countryCode: string, number: string): stri
   let digits = (number || '').replace(/\D/g, '');
   if (!digits) return '';
 
-  // Max local length by country (Brazil: 11, USA: 10, Portugal: 9, Spain: 9, UK: 11)
-  const maxLocalLength =
-    cleanCode === '1' ? 10 : cleanCode === '351' || cleanCode === '34' ? 9 : 11;
+  const maxLocalLength = COUNTRY_MAX_LENGTH[cleanCode] || 11;
 
-  // Strip repeated country codes at start (e.g. 5555... or 555555...)
+  // Strip repeated country codes at start (e.g. 5555... or 591591... or 59176846913)
   while (cleanCode && digits.startsWith(cleanCode) && digits.length > maxLocalLength) {
     digits = digits.slice(cleanCode.length);
   }

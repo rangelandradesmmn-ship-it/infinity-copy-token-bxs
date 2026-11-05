@@ -372,7 +372,22 @@ export function normalizeLandingPageContent(raw: unknown): LandingPageContent {
       : initialLandingPageContent.tokenSection,
     ctaBanner: { ...initialLandingPageContent.ctaBanner, ...(c.ctaBanner || {}) },
     footer: { ...initialLandingPageContent.footer, ...(c.footer || {}) },
-    defaultSettings: { ...initialLandingPageContent.defaultSettings, ...(c.defaultSettings || {}) },
+    defaultSettings: {
+      ...initialLandingPageContent.defaultSettings,
+      ...(c.defaultSettings || {}),
+      backofficeUrl:
+        c.defaultSettings?.backofficeUrl !== undefined
+          ? c.defaultSettings.backofficeUrl
+          : initialLandingPageContent.defaultSettings.backofficeUrl,
+      backofficeButtonText:
+        c.defaultSettings?.backofficeButtonText !== undefined
+          ? c.defaultSettings.backofficeButtonText
+          : initialLandingPageContent.defaultSettings.backofficeButtonText,
+      backofficeEnabled:
+        c.defaultSettings?.backofficeEnabled !== undefined
+          ? c.defaultSettings.backofficeEnabled
+          : initialLandingPageContent.defaultSettings.backofficeEnabled,
+    },
     officialChannels: c.officialChannels
       ? { ...initialLandingPageContent.officialChannels!, ...c.officialChannels }
       : initialLandingPageContent.officialChannels,

@@ -8,9 +8,19 @@ interface FooterSectionProps {
   footer: LandingPageContent['footer'];
   brand: LandingPageContent['brand'];
   user?: UserWithSettings;
+  backofficeUrl?: string;
+  backofficeButtonText?: string;
+  backofficeEnabled?: boolean;
 }
 
-export function FooterSection({ footer, brand, user }: FooterSectionProps) {
+export function FooterSection({
+  footer,
+  brand,
+  user,
+  backofficeUrl = 'https://www.infinitycopy.pro/login',
+  backofficeButtonText = 'Acessar backoffice',
+  backofficeEnabled = true,
+}: FooterSectionProps) {
   const [year, setYear] = React.useState<number>(2026);
 
   React.useEffect(() => {
@@ -58,6 +68,19 @@ export function FooterSection({ footer, brand, user }: FooterSectionProps) {
         <div className="pt-6 text-center text-xs text-slate-400 leading-relaxed max-w-3xl mx-auto space-y-2">
           <p>{footer.legalText}</p>
           <div className="flex items-center justify-center gap-4 text-[11px] text-slate-500 pt-1">
+            {backofficeEnabled !== false && backofficeUrl && (
+              <>
+                <a
+                  href={backofficeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-blue-400 font-semibold text-blue-400/90 transition-colors"
+                >
+                  {backofficeButtonText || 'Acessar backoffice'}
+                </a>
+                <span>&bull;</span>
+              </>
+            )}
             <a href="/painel/login" className="hover:text-blue-400 transition-colors">
               Portal do Parceiro
             </a>

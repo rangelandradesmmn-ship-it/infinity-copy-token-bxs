@@ -141,6 +141,19 @@ export default function UserPanelPage() {
               <span className="hidden sm:inline">Bate-Papo & Chat</span>
             </a>
 
+            {/* Quick link to Backoffice */}
+            <a
+              href="https://www.infinitycopy.pro/login"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 shadow-sm border border-blue-400/30 transition-colors"
+              title="Acessar backoffice oficial"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-blue-100" />
+              <span className="hidden sm:inline">Acessar backoffice</span>
+              <span className="sm:hidden">Backoffice</span>
+            </a>
+
             {currentUser.role === 'admin' && (
               <Link
                 href="/admin"

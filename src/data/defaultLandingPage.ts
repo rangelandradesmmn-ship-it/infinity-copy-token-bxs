@@ -250,5 +250,8 @@ export const initialLandingPageContent: LandingPageContent = {
     whatsappCountryCode: '+55',
     whatsappNumber: '22997953907',
     whatsappMessage: 'Olá! Acessei a página oficial e gostaria de falar com o suporte.',
+    backofficeUrl: 'https://www.infinitycopy.pro/login',
+    backofficeButtonText: 'Acessar backoffice',
+    backofficeEnabled: true,
   },
 };

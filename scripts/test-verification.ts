@@ -32,6 +32,7 @@ import {
   clearChatVisitorAuth,
   recordChatParticipantPresence,
   getActiveChatParticipants,
+  normalizeLandingPageContent,
 } from '../src/lib/dataService';
 import { supabase, isSupabaseConfigured } from '../src/lib/supabase';
 
@@ -754,6 +755,47 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
   assert(
     vimeoUrl === 'https://player.vimeo.com/video/123456789',
     '85. Links do Vimeo continuam convertidos para player oficial'
+  );
+
+  console.log('\n--- Módulo 23: Botão de Acesso ao Backoffice & Super Admin ---');
+  // 86. URL padrão e texto do botão no schema inicial
+  assert(
+    initialLandingPageContent.defaultSettings.backofficeUrl === 'https://www.infinitycopy.pro/login' &&
+    initialLandingPageContent.defaultSettings.backofficeButtonText === 'Acessar backoffice',
+    '86. Padrões da Matriz possuem URL do Backoffice https://www.infinitycopy.pro/login e nome "Acessar backoffice"'
+  );
+
+  // 87. Normalização garante fallback automático para clones e páginas existentes
+  const normalizedFallback = normalizeLandingPageContent({
+    defaultSettings: {
+      registrationUrl: 'https://exemplo.com',
+      whatsappCountryCode: '+55',
+      whatsappNumber: '11999999999',
+      whatsappMessage: 'Olá',
+    },
+  } as any);
+  assert(
+    normalizedFallback.defaultSettings.backofficeUrl === 'https://www.infinitycopy.pro/login' &&
+    normalizedFallback.defaultSettings.backofficeButtonText === 'Acessar backoffice' &&
+    normalizedFallback.defaultSettings.backofficeEnabled === true,
+    '87. Normalização injeta com fidelidade o Backoffice oficial quando omitido em versões anteriores'
+  );
+
+  // 88. Super Admin personaliza a URL do Backoffice com sucesso
+  const customBackoffice = normalizeLandingPageContent({
+    defaultSettings: {
+      registrationUrl: 'https://exemplo.com',
+      whatsappCountryCode: '+55',
+      whatsappNumber: '11999999999',
+      whatsappMessage: 'Olá',
+      backofficeUrl: 'https://painel.customizado.com/login',
+      backofficeButtonText: 'Entrar no Escritório',
+    },
+  } as any);
+  assert(
+    customBackoffice.defaultSettings.backofficeUrl === 'https://painel.customizado.com/login' &&
+    customBackoffice.defaultSettings.backofficeButtonText === 'Entrar no Escritório',
+    '88. Super Admin personaliza a URL e o texto do botão do Backoffice com sincronização total'
   );
 
   // Limpeza de teardown dos testes: remove mensagens e presenças temporárias do banco

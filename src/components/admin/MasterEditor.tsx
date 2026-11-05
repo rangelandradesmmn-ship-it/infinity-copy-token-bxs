@@ -44,6 +44,7 @@ import {
   Users,
   MessageCircle,
   Clock,
+  ExternalLink,
 } from 'lucide-react';
 import { FONT_FAMILY_MAP } from '@/components/landing/LandingRenderer';
 
@@ -1167,6 +1168,12 @@ export function MasterEditor({
                 <span className="hidden sm:inline-block px-3 py-1 rounded-lg bg-emerald-950/70 border border-emerald-500/40 text-emerald-400 text-xs font-semibold">
                   WhatsApp
                 </span>
+                {content.defaultSettings?.backofficeEnabled !== false && (
+                  <span className="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold flex items-center gap-1 shadow-sm">
+                    <ExternalLink className="w-3 h-3 text-blue-100" />
+                    <span>{content.defaultSettings?.backofficeButtonText || 'Acessar backoffice'}</span>
+                  </span>
+                )}
                 <span className="px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 text-xs">
                   Área do Membro
                 </span>
@@ -1260,6 +1267,96 @@ export function MasterEditor({
                 <p className="text-[11px] text-slate-500 mt-1">
                   Formatos ideais: PNG com fundo transparente ou SVG vetorial.
                 </p>
+              </div>
+            </div>
+
+            {/* 2.1. Botão do Backoffice no Cabeçalho & Rodapé */}
+            <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <ExternalLink className="w-4 h-4 text-blue-400" />
+                    Botão "Acessar backoffice" na Barra de Navegação (Navbar)
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Configuração do botão exibido no topo e rodapé de todas as landing pages principais e clonadas.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={content.defaultSettings?.backofficeEnabled !== false}
+                    onChange={(e) =>
+                      setContent((prev) => ({
+                        ...prev,
+                        defaultSettings: {
+                          ...prev.defaultSettings,
+                          backofficeEnabled: e.target.checked,
+                        },
+                      }))
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    URL de Destino do Backoffice
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={content.defaultSettings?.backofficeUrl ?? 'https://www.infinitycopy.pro/login'}
+                      onChange={(e) =>
+                        setContent((prev) => ({
+                          ...prev,
+                          defaultSettings: {
+                            ...prev.defaultSettings,
+                            backofficeUrl: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="https://www.infinitycopy.pro/login"
+                      className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                    />
+                    {content.defaultSettings?.backofficeUrl && (
+                      <a
+                        href={content.defaultSettings.backofficeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-xl text-xs font-semibold flex items-center gap-1 shrink-0 transition-colors"
+                        title="Testar Link em nova aba"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Testar</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    Nome / Texto do Botão
+                  </label>
+                  <input
+                    type="text"
+                    value={content.defaultSettings?.backofficeButtonText ?? 'Acessar backoffice'}
+                    onChange={(e) =>
+                      setContent((prev) => ({
+                        ...prev,
+                        defaultSettings: {
+                          ...prev.defaultSettings,
+                          backofficeButtonText: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="Acessar backoffice"
+                    className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                  />
+                </div>
               </div>
             </div>
 
@@ -2145,6 +2242,96 @@ export function MasterEditor({
                     placeholder={
                       COUNTRY_OPTIONS.find((c) => c.code === (content.defaultSettings.whatsappCountryCode || '+55'))?.placeholder || 'Ex: 11999998888'
                     }
+                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Botão Acessar Backoffice */}
+            <div className="sm:col-span-2 pt-4 border-t border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <label className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <ExternalLink className="w-4 h-4 text-blue-400" />
+                    Botão "Acessar backoffice" (Navbar e Rodapé da Landing Page)
+                  </label>
+                  <p className="text-[11px] text-slate-400">
+                    Botão de acesso direto ao escritório virtual exibido no topo e rodapé de todas as landing pages principais e clonadas.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={content.defaultSettings?.backofficeEnabled !== false}
+                    onChange={(e) =>
+                      setContent((prev) => ({
+                        ...prev,
+                        defaultSettings: {
+                          ...prev.defaultSettings,
+                          backofficeEnabled: e.target.checked,
+                        },
+                      }))
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    URL de Destino do Backoffice
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={content.defaultSettings?.backofficeUrl ?? 'https://www.infinitycopy.pro/login'}
+                      onChange={(e) =>
+                        setContent((prev) => ({
+                          ...prev,
+                          defaultSettings: {
+                            ...prev.defaultSettings,
+                            backofficeUrl: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="https://www.infinitycopy.pro/login"
+                      className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    />
+                    {content.defaultSettings?.backofficeUrl && (
+                      <a
+                        href={content.defaultSettings.backofficeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-xl text-xs font-semibold flex items-center gap-1 shrink-0 transition-colors"
+                        title="Testar Link em nova aba"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Testar</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    Nome / Texto do Botão
+                  </label>
+                  <input
+                    type="text"
+                    value={content.defaultSettings?.backofficeButtonText ?? 'Acessar backoffice'}
+                    onChange={(e) =>
+                      setContent((prev) => ({
+                        ...prev,
+                        defaultSettings: {
+                          ...prev.defaultSettings,
+                          backofficeButtonText: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="Acessar backoffice"
                     className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-blue-500"
                   />
                 </div>

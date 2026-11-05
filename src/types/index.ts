@@ -183,6 +183,9 @@ export interface LandingPageContent {
     whatsappCountryCode: string;
     whatsappNumber: string;
     whatsappMessage: string;
+    backofficeUrl?: string;
+    backofficeButtonText?: string;
+    backofficeEnabled?: boolean;
   };
 }
 

@@ -74,6 +74,17 @@ export function LandingRenderer({
     return content.officialChannels || initialLandingPageContent.officialChannels;
   }, [content.officialChannels]);
 
+  // 4. Resolve backoffice URL & button settings
+  const backofficeUrl = useMemo(() => {
+    return content.defaultSettings?.backofficeUrl || 'https://www.infinitycopy.pro/login';
+  }, [content.defaultSettings?.backofficeUrl]);
+
+  const backofficeButtonText = useMemo(() => {
+    return content.defaultSettings?.backofficeButtonText || 'Acessar backoffice';
+  }, [content.defaultSettings?.backofficeButtonText]);
+
+  const backofficeEnabled = content.defaultSettings?.backofficeEnabled !== false;
+
   // Page path for telemetry
   const pagePath = user ? `/p/${user.slug}` : '/';
 
@@ -148,6 +159,9 @@ export function LandingRenderer({
         whatsAppUrl={whatsAppUrl}
         onWhatsAppClick={handleWhatsAppClick}
         isPreview={isPreview}
+        backofficeUrl={backofficeUrl}
+        backofficeButtonText={backofficeButtonText}
+        backofficeEnabled={backofficeEnabled}
       />
 
       <main className="flex-1">
@@ -231,7 +245,14 @@ export function LandingRenderer({
       </main>
 
       {/* Footer */}
-      <FooterSection footer={content.footer} brand={content.brand} user={user} />
+      <FooterSection
+        footer={content.footer}
+        brand={content.brand}
+        user={user}
+        backofficeUrl={backofficeUrl}
+        backofficeButtonText={backofficeButtonText}
+        backofficeEnabled={backofficeEnabled}
+      />
 
       {/* Online Chat Widget & Direct Support */}
       <LandingChatWidget

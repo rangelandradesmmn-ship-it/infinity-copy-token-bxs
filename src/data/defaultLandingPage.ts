@@ -254,4 +254,11 @@ export const initialLandingPageContent: LandingPageContent = {
     backofficeButtonText: 'Acessar backoffice',
     backofficeEnabled: true,
   },
+  tokenRewardSettings: {
+    tokenStock: 5000,
+    minWithdrawal: 100,
+    rewardPerShare: 1,
+    isSharingEnabled: true,
+    totalDistributed: 0,
+  },
 };

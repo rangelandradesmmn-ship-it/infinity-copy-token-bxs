@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   LogOut,
   MessageSquare,
+  Coins,
 } from 'lucide-react';
 
 export function AdminSidebar() {
@@ -60,6 +61,12 @@ export function AdminSidebar() {
       href: '/admin',
       icon: LayoutDashboard,
       active: pathname === '/admin',
+    },
+    {
+      label: 'Recompensas BXS',
+      href: '/admin#rewards',
+      icon: Coins,
+      active: false,
     },
     {
       label: 'Chat & Moderação',

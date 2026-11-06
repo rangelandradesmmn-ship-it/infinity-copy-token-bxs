@@ -233,3 +233,134 @@ export function formatVideoEmbedUrl(url: string): string {
 
   return trimmed;
 }
+
+/**
+ * Validates whether a submitted URL corresponds to an authentic, public social media publication.
+ * Supported platforms: Facebook, Instagram, X (Twitter), LinkedIn, TikTok, YouTube, Threads, Telegram, etc.
+ */
+export function validateSocialPostUrl(urlString: string): {
+  isValid: boolean;
+  platform: 'facebook' | 'instagram' | 'twitter' | 'linkedin' | 'tiktok' | 'youtube' | 'threads' | 'telegram' | 'other';
+  isPublic: boolean;
+  error?: string;
+} {
+  if (!urlString || typeof urlString !== 'string') {
+    return { isValid: false, platform: 'other', isPublic: false, error: 'Por favor, informe a URL da publicação.' };
+  }
+
+  const trimmed = urlString.trim();
+  if (!/^https:\/\/[^/]+/i.test(trimmed)) {
+    return {
+      isValid: false,
+      platform: 'other',
+      isPublic: false,
+      error: 'A URL deve ser um link público e seguro iniciado com https://',
+    };
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    const pathname = parsed.pathname;
+
+    // Reject localhost, internal IPs
+    if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.')) {
+      return { isValid: false, platform: 'other', isPublic: false, error: 'Endereço local não permitido.' };
+    }
+
+    // 1. Facebook
+    if (host.includes('facebook.com') || host.includes('fb.watch') || host.includes('fb.com')) {
+      const isPublicPost =
+        pathname.includes('/posts/') ||
+        pathname.includes('/watch') ||
+        pathname.includes('/reel/') ||
+        pathname.includes('/share/p/') ||
+        pathname.includes('permalink.php') ||
+        pathname.includes('photo.php') ||
+        parsed.searchParams.has('story_fbid');
+
+      if (!isPublicPost && pathname.length <= 1) {
+        return { isValid: false, platform: 'facebook', isPublic: false, error: 'Informe o link direto do post/vídeo no Facebook, não a página inicial.' };
+      }
+      return { isValid: true, platform: 'facebook', isPublic: true };
+    }
+
+    // 2. Instagram
+    if (host.includes('instagram.com')) {
+      const isPost = pathname.includes('/p/') || pathname.includes('/reel/') || pathname.includes('/reels/') || pathname.includes('/tv/');
+      if (!isPost) {
+        return { isValid: false, platform: 'instagram', isPublic: false, error: 'Informe o link direto do post ou reel público no Instagram (/p/ ou /reel/).' };
+      }
+      return { isValid: true, platform: 'instagram', isPublic: true };
+    }
+
+    // 3. X / Twitter
+    if (host.includes('twitter.com') || host.includes('x.com')) {
+      const isTweet = pathname.includes('/status/');
+      if (!isTweet) {
+        return { isValid: false, platform: 'twitter', isPublic: false, error: 'Informe o link direto do tweet/post no X/Twitter (/status/...).' };
+      }
+      return { isValid: true, platform: 'twitter', isPublic: true };
+    }
+
+    // 4. LinkedIn
+    if (host.includes('linkedin.com')) {
+      const isPost = pathname.includes('/posts/') || pathname.includes('/feed/update/') || pathname.includes('/pulse/');
+      if (!isPost) {
+        return { isValid: false, platform: 'linkedin', isPublic: false, error: 'Informe o link direto da publicação no LinkedIn (/posts/...).' };
+      }
+      return { isValid: true, platform: 'linkedin', isPublic: true };
+    }
+
+    // 5. TikTok
+    if (host.includes('tiktok.com')) {
+      const isVideo = pathname.includes('/video/') || pathname.includes('/v/');
+      if (!isVideo && pathname.length <= 1) {
+        return { isValid: false, platform: 'tiktok', isPublic: false, error: 'Informe o link direto do vídeo no TikTok.' };
+      }
+      return { isValid: true, platform: 'tiktok', isPublic: true };
+    }
+
+    // 6. YouTube
+    if (host.includes('youtube.com') || host.includes('youtu.be')) {
+      const isVideo = pathname.includes('/watch') || pathname.includes('/shorts/') || pathname.includes('/community') || host.includes('youtu.be');
+      if (!isVideo) {
+        return { isValid: false, platform: 'youtube', isPublic: false, error: 'Informe o link do vídeo, short ou post da comunidade no YouTube.' };
+      }
+      return { isValid: true, platform: 'youtube', isPublic: true };
+    }
+
+    // 7. Threads
+    if (host.includes('threads.net')) {
+      const isPost = pathname.includes('/post/') || pathname.includes('/t/');
+      if (!isPost) {
+        return { isValid: false, platform: 'threads', isPublic: false, error: 'Informe o link direto da publicação no Threads.' };
+      }
+      return { isValid: true, platform: 'threads', isPublic: true };
+    }
+
+    // 8. Telegram
+    if (host.includes('t.me')) {
+      const isPost = pathname.split('/').filter(Boolean).length >= 2;
+      return { isValid: true, platform: 'telegram', isPublic: isPost };
+    }
+
+    return {
+      isValid: false,
+      platform: 'other',
+      isPublic: false,
+      error: 'A URL informada deve pertencer a uma rede social suportada (Facebook, Instagram, X/Twitter, YouTube, LinkedIn, TikTok, Threads ou Telegram).',
+    };
+  } catch {
+    return { isValid: false, platform: 'other', isPublic: false, error: 'URL inválida.' };
+  }
+}
+
+/**
+ * Validates a BNB Smart Chain (BEP-20) wallet address.
+ * Standard format: '0x' followed by 40 hexadecimal characters.
+ */
+export function isValidBscWalletAddress(address: string): boolean {
+  if (!address || typeof address !== 'string') return false;
+  return /^0x[a-fA-F0-9]{40}$/.test(address.trim());
+}

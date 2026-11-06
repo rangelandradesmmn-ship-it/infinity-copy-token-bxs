@@ -15,6 +15,7 @@ import { UserMetricsCards } from '@/components/user/UserMetricsCards';
 import { PersonalizationForm } from '@/components/user/PersonalizationForm';
 import { EasyShareModal } from '@/components/user/EasyShareModal';
 import { LandingChatWidget } from '@/components/landing/LandingChatWidget';
+import { UserTokenRewards } from '@/components/user/UserTokenRewards';
 import {
   Copy,
   Check,
@@ -302,6 +303,11 @@ export default function UserPanelPage() {
             </div>
           </div>
         </div>
+
+        {/* Feature: Recompensas em Tokens BXS & Solicitação de Saque */}
+        <section id="rewards">
+          <UserTokenRewards user={currentUser} landingUrl={landingUrl} />
+        </section>
 
         {/* Real-time Metrics (Requirement 5.2) */}
         {metrics && (

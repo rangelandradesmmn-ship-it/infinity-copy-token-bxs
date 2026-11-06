@@ -187,6 +187,7 @@ export interface LandingPageContent {
     backofficeButtonText?: string;
     backofficeEnabled?: boolean;
   };
+  tokenRewardSettings?: TokenRewardSettings;
 }
 
 export interface LandingPageVersion {
@@ -308,6 +309,53 @@ export interface ChatParticipant {
   whatsapp?: string;
   lastSeen: string;
   isOnline: boolean;
+}
+
+export interface TokenRewardSettings {
+  tokenStock: number; // Estoque de tokens BXS disponíveis (ex: 5000)
+  minWithdrawal: number; // Mínimo para retirada (padrão 100)
+  rewardPerShare: number; // Recompensa por compartilhamento (1 BXS)
+  isSharingEnabled: boolean; // Se compartilhamentos estão liberados ou travados
+  totalDistributed?: number; // Total de tokens já distribuídos/pagos
+}
+
+export interface VideoShareRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  videoId: string;
+  videoTitle: string;
+  platform: 'whatsapp' | 'facebook' | 'twitter' | 'telegram' | 'linkedin' | 'instagram' | 'other';
+  postUrl: string;
+  isPublic: boolean;
+  tokensAwarded: number;
+  status: 'approved' | 'rejected' | 'pending';
+  createdAt: string;
+}
+
+export interface TokenWithdrawalRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  amount: number;
+  walletAddress: string;
+  status: 'pending' | 'paid' | 'rejected';
+  txHash?: string;
+  paidAt?: string;
+  paidBy?: string;
+  createdAt: string;
+}
+
+export interface UserTokenBalance {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  currentBalance: number;
+  totalShares: number;
+  totalWithdrawn: number;
+  pendingWithdrawal: number;
 }
 
 

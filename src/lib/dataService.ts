@@ -15,6 +15,10 @@ import {
   ChatVisitorAuth,
   ChatParticipant,
   ChatUserRole,
+  TokenRewardSettings,
+  VideoShareRecord,
+  TokenWithdrawalRequest,
+  UserTokenBalance,
 } from '@/types';
 import { initialLandingPageContent } from '@/data/defaultLandingPage';
 import {
@@ -27,7 +31,14 @@ import {
   seedAuditLogs,
 } from '@/data/seedData';
 import { isSupabaseConfigured, supabase } from './supabase';
-import { generateSlug, isValidHttpsUrl, sanitizePhoneNumber, cleanLocalPhoneNumber } from './security';
+import {
+  generateSlug,
+  isValidHttpsUrl,
+  sanitizePhoneNumber,
+  cleanLocalPhoneNumber,
+  validateSocialPostUrl,
+  isValidBscWalletAddress,
+} from './security';
 
 const STORAGE_KEYS = {
   USERS: 'clonelp_users',
@@ -43,6 +54,9 @@ const STORAGE_KEYS = {
   ADMIN_PRESENCE: 'clonelp_admin_presence',
   CHAT_VISITOR_AUTH: 'clonelp_chat_visitor_auth',
   CHAT_PARTICIPANTS: 'clonelp_chat_participants',
+  TOKEN_REWARD_SETTINGS: 'clonelp_token_reward_settings',
+  TOKEN_SHARES: 'clonelp_token_shares',
+  TOKEN_WITHDRAWALS: 'clonelp_token_withdrawals',
 };
 
 const TEST_USER_IDS = new Set(['admin-uuid-0001', 'user-uuid-0001', 'user-uuid-0002', 'user-uuid-0003']);
@@ -394,6 +408,10 @@ export function normalizeLandingPageContent(raw: unknown): LandingPageContent {
     chatSettings: c.chatSettings
       ? { ...initialLandingPageContent.chatSettings!, ...c.chatSettings }
       : initialLandingPageContent.chatSettings,
+    tokenRewardSettings: {
+      ...initialLandingPageContent.tokenRewardSettings!,
+      ...(c.tokenRewardSettings || {}),
+    },
   } as LandingPageContent;
 }
 
@@ -1061,6 +1079,62 @@ export async function updateAllowedUserPersonalization(
     if (settingsError) {
       return { success: false, message: settingsError.message };
     }
+
+    // Sync admin changes to master defaults so root landing page is in sync
+    const allUsers = await getAllUsers();
+    const currUser = allUsers.find((u) => u.id === userId);
+    if (currUser?.role === 'admin' || currUser?.email === 'rangelandradesmmn@gmail.com') {
+      try {
+        const published = await getPublishedLandingPage();
+        const updatedMaster = {
+          ...published.content,
+          defaultSettings: {
+            ...published.content.defaultSettings,
+            registrationUrl:
+              payload.registration_url !== undefined
+                ? payload.registration_url.trim()
+                : published.content.defaultSettings.registrationUrl,
+            whatsappCountryCode:
+              payload.whatsapp_country_code !== undefined
+                ? payload.whatsapp_country_code.trim()
+                : published.content.defaultSettings.whatsappCountryCode,
+            whatsappNumber:
+              payload.whatsapp_number !== undefined
+                ? cleanLocalPhoneNumber(payload.whatsapp_country_code || '+55', payload.whatsapp_number)
+                : published.content.defaultSettings.whatsappNumber,
+            whatsappMessage:
+              payload.whatsapp_message !== undefined
+                ? payload.whatsapp_message.trim()
+                : published.content.defaultSettings.whatsappMessage,
+          },
+        };
+        await saveLandingPageDraft(updatedMaster, userId);
+        await publishLandingPage(updatedMaster, userId);
+      } catch (e) {
+        console.warn('Failed to sync admin changes to master default:', e);
+      }
+    }
+
+    // Also update local cache for instant client consistency
+    initLocalDatabase();
+    const allSettings = getLocalItem<Record<string, UserLandingSettings>>(
+      STORAGE_KEYS.SETTINGS,
+      seedUserSettings
+    );
+    allSettings[userId] = {
+      ...(allSettings[userId] || {
+        id: existingSettings?.id || `set-${Date.now()}`,
+        user_id: userId,
+        profile_image_url: '',
+        registration_url: '',
+        whatsapp_country_code: '+55',
+        whatsapp_number: '',
+        whatsapp_message: '',
+        updated_at: now,
+      }),
+      ...settingsUpdate,
+    };
+    setLocalItem(STORAGE_KEYS.SETTINGS, allSettings);
 
     return { success: true, message: 'Dados pessoais atualizados com sucesso!' };
   }
@@ -2752,4 +2826,618 @@ export async function clearPublicChat(adminId: string): Promise<{ success: boole
 
   await logAdminAction(adminId, 'CLEAR_PUBLIC_CHAT', 'chat_message', 'public');
   return { success: true, message: 'Bate-papo geral limpo com sucesso.' };
+}
+
+// ====================================================================
+// PROGRAMA DE RECOMPENSAS TOKEN BXS & COMPARTILHAMENTO DE VÍDEOS
+// ====================================================================
+
+export async function getTokenRewardSettings(): Promise<TokenRewardSettings> {
+  const defaultSettings: TokenRewardSettings = {
+    tokenStock: 5000,
+    minWithdrawal: 100,
+    rewardPerShare: 1,
+    isSharingEnabled: true,
+    totalDistributed: 0,
+  };
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data } = await supabase
+        .from('landing_page_versions')
+        .select('content_json')
+        .eq('status', 'published')
+        .order('version_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (data && data.content_json?.tokenRewardSettings) {
+        const s = data.content_json.tokenRewardSettings as TokenRewardSettings;
+        return {
+          ...defaultSettings,
+          ...s,
+          isSharingEnabled: s.tokenStock <= 0 ? false : s.isSharingEnabled !== false,
+        };
+      }
+    } catch (err) {
+      console.warn('Could not read token reward settings from Supabase:', err);
+    }
+  }
+
+  initLocalDatabase();
+  const local = getLocalItem<TokenRewardSettings>(STORAGE_KEYS.TOKEN_REWARD_SETTINGS, defaultSettings);
+  return {
+    ...defaultSettings,
+    ...local,
+    isSharingEnabled: local.tokenStock <= 0 ? false : local.isSharingEnabled !== false,
+  };
+}
+
+export async function updateTokenRewardSettings(
+  settings: Partial<TokenRewardSettings>,
+  adminId: string = 'admin'
+): Promise<TokenRewardSettings> {
+  const current = await getTokenRewardSettings();
+  const updated: TokenRewardSettings = {
+    ...current,
+    ...settings,
+    tokenStock: settings.tokenStock !== undefined ? Number(settings.tokenStock) : current.tokenStock,
+    minWithdrawal: settings.minWithdrawal !== undefined ? Number(settings.minWithdrawal) : current.minWithdrawal,
+    rewardPerShare: settings.rewardPerShare !== undefined ? Number(settings.rewardPerShare) : current.rewardPerShare,
+  };
+
+  // If token stock reaches 0 or below, automatically lock sharing!
+  if (updated.tokenStock <= 0) {
+    updated.isSharingEnabled = false;
+  } else if (settings.isSharingEnabled !== undefined) {
+    updated.isSharingEnabled = settings.isSharingEnabled;
+  }
+
+  // Save to local storage
+  setLocalItem(STORAGE_KEYS.TOKEN_REWARD_SETTINGS, updated);
+
+  // Sync with Supabase published version if available
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data } = await supabase
+        .from('landing_page_versions')
+        .select('*')
+        .eq('status', 'published')
+        .order('version_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        const content = data.content_json as LandingPageContent;
+        content.tokenRewardSettings = updated;
+        await supabase
+          .from('landing_page_versions')
+          .update({ content_json: content })
+          .eq('id', data.id);
+      }
+    } catch (err) {
+      console.error('Failed to sync token reward settings with Supabase:', err);
+    }
+  }
+
+  await logAdminAction(adminId, 'UPDATE_TOKEN_REWARD_SETTINGS', 'token_reward', 'global', {
+    updated,
+  });
+
+  return updated;
+}
+
+export async function getAllTokenShares(): Promise<VideoShareRecord[]> {
+  initLocalDatabase();
+  const localShares = getLocalItem<VideoShareRecord[]>(STORAGE_KEYS.TOKEN_SHARES, []);
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data } = await supabase
+        .from('landing_events')
+        .select('id, user_id, metadata, created_at')
+        .eq('page_path', '/reward/share')
+        .order('created_at', { ascending: false });
+
+      if (data && data.length > 0) {
+        const dbShares = data
+          .map((item) => {
+            const meta = (item.metadata || {}) as any;
+            return {
+              id: meta.id || item.id,
+              userId: meta.userId || item.user_id || '',
+              userName: meta.userName || 'Usuário',
+              userEmail: meta.userEmail || '',
+              videoId: meta.videoId || '',
+              videoTitle: meta.videoTitle || 'Vídeo Oficial',
+              platform: meta.platform || 'other',
+              postUrl: meta.postUrl || '',
+              isPublic: meta.isPublic !== false,
+              tokensAwarded: meta.tokensAwarded !== undefined ? Number(meta.tokensAwarded) : 1,
+              status: meta.status || 'approved',
+              createdAt: meta.createdAt || item.created_at,
+            } as VideoShareRecord;
+          })
+          .filter((s) => s.postUrl);
+
+        const map = new Map<string, VideoShareRecord>();
+        dbShares.forEach((s) => map.set(s.id, s));
+        localShares.forEach((s) => {
+          const existing = map.get(s.id);
+          if (!existing) {
+            map.set(s.id, s);
+          } else {
+            map.set(s.id, { ...existing, ...s });
+          }
+        });
+
+        return Array.from(map.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      }
+    } catch (err) {
+      console.warn('Could not read shares from Supabase:', err);
+    }
+  }
+
+  return localShares;
+}
+
+export async function getUserTokenShares(userId: string): Promise<VideoShareRecord[]> {
+  const all = await getAllTokenShares();
+  return all.filter((s) => s.userId === userId);
+}
+
+export async function recordVideoShareVerification(params: {
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  videoId: string;
+  videoTitle: string;
+  postUrl: string;
+}): Promise<{
+  success: boolean;
+  message: string;
+  record?: VideoShareRecord;
+  tokensAwarded?: number;
+}> {
+  const validation = validateSocialPostUrl(params.postUrl);
+  if (!validation.isValid) {
+    return {
+      success: false,
+      message: validation.error || 'URL inválida. Informe um link público válido da sua postagem.',
+    };
+  }
+
+  const settings = await getTokenRewardSettings();
+  if (!settings.isSharingEnabled || settings.tokenStock <= 0) {
+    return {
+      success: false,
+      message:
+        'O estoque de tokens para recompensas está esgotado ou temporariamente pausado pela administração.',
+    };
+  }
+
+  const allShares = await getAllTokenShares();
+  const cleanUrl = params.postUrl.trim().toLowerCase();
+  const isDuplicate = allShares.some(
+    (s) => s.postUrl.trim().toLowerCase() === cleanUrl && s.status === 'approved'
+  );
+
+  if (isDuplicate) {
+    return {
+      success: false,
+      message: 'Esta publicação já foi submetida e validada anteriormente no sistema.',
+    };
+  }
+
+  const record: VideoShareRecord = {
+    id: `share-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    userId: params.userId,
+    userName: params.userName || 'Parceiro',
+    userEmail: params.userEmail || '',
+    videoId: params.videoId,
+    videoTitle: params.videoTitle,
+    platform: validation.platform as any,
+    postUrl: params.postUrl.trim(),
+    isPublic: true,
+    tokensAwarded: settings.rewardPerShare || 1,
+    status: 'approved',
+    createdAt: new Date().toISOString(),
+  };
+
+  // 1. Save locally
+  initLocalDatabase();
+  const currentLocal = getLocalItem<VideoShareRecord[]>(STORAGE_KEYS.TOKEN_SHARES, []);
+  currentLocal.unshift(record);
+  setLocalItem(STORAGE_KEYS.TOKEN_SHARES, currentLocal);
+
+  // 2. Save in Supabase landing_events
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(record.userId);
+      await supabase.from('landing_events').insert({
+        user_id: isUuid ? record.userId : null,
+        event_type: 'page_view',
+        page_path: '/reward/share',
+        session_id: record.platform,
+        metadata: {
+          type: 'video_share_reward',
+          ...record,
+        },
+      });
+    } catch (err) {
+      console.error('Failed to record share in Supabase:', err);
+    }
+  }
+
+  return {
+    success: true,
+    message: `Parabéns! Sua publicação foi verificada com sucesso e ${record.tokensAwarded} Token BXS foi creditado ao seu saldo!`,
+    record,
+    tokensAwarded: record.tokensAwarded,
+  };
+}
+
+export async function getAllTokenWithdrawals(): Promise<TokenWithdrawalRequest[]> {
+  initLocalDatabase();
+  const localWithdrawals = getLocalItem<TokenWithdrawalRequest[]>(STORAGE_KEYS.TOKEN_WITHDRAWALS, []);
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data } = await supabase
+        .from('landing_events')
+        .select('id, user_id, metadata, created_at')
+        .eq('page_path', '/reward/withdrawal')
+        .order('created_at', { ascending: false });
+
+      if (data && data.length > 0) {
+        const dbWithdrawals = data
+          .map((item) => {
+            const meta = (item.metadata || {}) as any;
+            return {
+              id: meta.id || item.id,
+              userId: item.user_id || meta.userId || '',
+              userName: meta.userName || 'Usuário',
+              userEmail: meta.userEmail || '',
+              amount: Number(meta.amount || 0),
+              walletAddress: meta.walletAddress || '',
+              status: meta.status || 'pending',
+              txHash: meta.txHash || '',
+              paidAt: meta.paidAt || '',
+              paidBy: meta.paidBy || '',
+              createdAt: meta.createdAt || item.created_at,
+            } as TokenWithdrawalRequest;
+          })
+          .filter((w) => w.walletAddress);
+
+        const map = new Map<string, TokenWithdrawalRequest>();
+        dbWithdrawals.forEach((w) => map.set(w.id, w));
+        localWithdrawals.forEach((w) => {
+          const existing = map.get(w.id);
+          if (!existing) {
+            map.set(w.id, w);
+          } else {
+            // Local holds updated status (e.g. just paid by admin)
+            map.set(w.id, { ...existing, ...w });
+          }
+        });
+
+        return Array.from(map.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      }
+    } catch (err) {
+      console.warn('Could not read withdrawals from Supabase:', err);
+    }
+  }
+
+  return localWithdrawals;
+}
+
+export async function getUserTokenWithdrawals(userId: string): Promise<TokenWithdrawalRequest[]> {
+  const all = await getAllTokenWithdrawals();
+  return all.filter((w) => w.userId === userId);
+}
+
+export async function getUserTokenBalance(userId: string): Promise<UserTokenBalance> {
+  const [shares, withdrawals, allUsers] = await Promise.all([
+    getUserTokenShares(userId),
+    getUserTokenWithdrawals(userId),
+    getAllUsers(),
+  ]);
+
+  const user = allUsers.find((u) => u.id === userId);
+  const totalEarned = shares.reduce((acc, s) => acc + (s.tokensAwarded || 1), 0);
+  const paidWithdrawn = withdrawals
+    .filter((w) => w.status === 'paid')
+    .reduce((acc, w) => acc + (w.amount || 0), 0);
+  const pendingWithdrawn = withdrawals
+    .filter((w) => w.status === 'pending')
+    .reduce((acc, w) => acc + (w.amount || 0), 0);
+
+  const currentBalance = Math.max(0, totalEarned - paidWithdrawn - pendingWithdrawn);
+
+  return {
+    userId,
+    userName: user?.name || shares[0]?.userName || 'Usuário',
+    userEmail: user?.email || shares[0]?.userEmail || '',
+    currentBalance,
+    totalShares: shares.length,
+    totalWithdrawn: paidWithdrawn,
+    pendingWithdrawal: pendingWithdrawn,
+  };
+}
+
+export async function requestTokenWithdrawal(params: {
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  amount?: number;
+  walletAddress: string;
+}): Promise<{
+  success: boolean;
+  message: string;
+  error?: string;
+  withdrawal?: TokenWithdrawalRequest;
+}> {
+  if (!isValidBscWalletAddress(params.walletAddress)) {
+    const msg =
+      'Endereço de carteira BEP-20 (BNB Smart Chain) inválido. Deve iniciar com 0x seguido de 40 dígitos hexadecimais.';
+    return {
+      success: false,
+      message: msg,
+      error: msg,
+    };
+  }
+
+  const [balance, settings] = await Promise.all([
+    getUserTokenBalance(params.userId),
+    getTokenRewardSettings(),
+  ]);
+
+  const requestedAmount = params.amount !== undefined ? Number(params.amount) : balance.currentBalance;
+
+  if (balance.currentBalance < settings.minWithdrawal) {
+    const msg = `Saldo insuficiente para retirada. Você possui ${balance.currentBalance} BXS e o valor mínimo acumulado é de ${settings.minWithdrawal} BXS.`;
+    return {
+      success: false,
+      message: msg,
+      error: msg,
+    };
+  }
+
+  if (requestedAmount < settings.minWithdrawal) {
+    const msg = `A quantidade mínima para solicitação é de ${settings.minWithdrawal} BXS.`;
+    return {
+      success: false,
+      message: msg,
+      error: msg,
+    };
+  }
+
+  if (requestedAmount > balance.currentBalance) {
+    const msg = `Valor solicitado (${requestedAmount} BXS) é maior que o seu saldo disponível (${balance.currentBalance} BXS).`;
+    return {
+      success: false,
+      message: msg,
+      error: msg,
+    };
+  }
+
+  const withdrawal: TokenWithdrawalRequest = {
+    id: `wth-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    userId: params.userId,
+    userName: params.userName || balance.userName,
+    userEmail: params.userEmail || balance.userEmail,
+    amount: requestedAmount,
+    walletAddress: params.walletAddress.trim(),
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  };
+
+  // 1. Save locally
+  initLocalDatabase();
+  const localList = getLocalItem<TokenWithdrawalRequest[]>(STORAGE_KEYS.TOKEN_WITHDRAWALS, []);
+  localList.unshift(withdrawal);
+  setLocalItem(STORAGE_KEYS.TOKEN_WITHDRAWALS, localList);
+
+  // 2. Save in Supabase landing_events
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(withdrawal.userId);
+      await supabase.from('landing_events').insert({
+        user_id: isUuid ? withdrawal.userId : null,
+        event_type: 'page_view',
+        page_path: '/reward/withdrawal',
+        session_id: 'pending',
+        metadata: {
+          type: 'token_withdrawal_request',
+          ...withdrawal,
+        },
+      });
+    } catch (err) {
+      console.error('Failed to save withdrawal in Supabase:', err);
+    }
+  }
+
+  return {
+    success: true,
+    message: `Solicitação de retirada de ${withdrawal.amount} BXS enviada com sucesso! O pagamento será processado para a carteira informada.`,
+    withdrawal,
+  };
+}
+
+export async function payTokenWithdrawal(
+  paramsOrWithdrawalId:
+    | {
+        withdrawalId: string;
+        txHash: string;
+        adminId?: string;
+        adminEmail?: string;
+      }
+    | string,
+  txHashArg?: string,
+  adminIdArg?: string,
+  adminEmailArg?: string
+): Promise<{
+  success: boolean;
+  message: string;
+  error?: string;
+  withdrawal?: TokenWithdrawalRequest;
+  remainingStock?: number;
+  stockDepleted?: boolean;
+}> {
+  const withdrawalId =
+    typeof paramsOrWithdrawalId === 'object'
+      ? paramsOrWithdrawalId.withdrawalId
+      : paramsOrWithdrawalId;
+  const txHash =
+    typeof paramsOrWithdrawalId === 'object'
+      ? paramsOrWithdrawalId.txHash
+      : txHashArg || '';
+  const adminId =
+    (typeof paramsOrWithdrawalId === 'object'
+      ? paramsOrWithdrawalId.adminId
+      : adminIdArg) || 'admin-uuid-0001';
+  const adminEmail =
+    (typeof paramsOrWithdrawalId === 'object'
+      ? paramsOrWithdrawalId.adminEmail
+      : adminEmailArg) || 'admin@saas.com';
+
+  const cleanHash = (txHash || '').trim();
+  if (!cleanHash || cleanHash.length < 10) {
+    const msg = 'Por favor, informe uma Hash da transação (TxID) válida da blockchain BSC.';
+    return {
+      success: false,
+      message: msg,
+      error: msg,
+    };
+  }
+
+  const allWithdrawals = await getAllTokenWithdrawals();
+  const target = allWithdrawals.find((w) => w.id === withdrawalId);
+  if (!target) {
+    const msg = 'Solicitação de retirada não encontrada.';
+    return { success: false, message: msg, error: msg };
+  }
+
+  if (target.status === 'paid') {
+    const msg = 'Esta solicitação de retirada já foi marcada como paga.';
+    return { success: false, message: msg, error: msg };
+  }
+
+  const now = new Date().toISOString();
+  target.status = 'paid';
+  target.txHash = cleanHash;
+  target.paidAt = now;
+  target.paidBy = adminEmail || adminId;
+
+  // 1. Update local storage
+  setLocalItem(STORAGE_KEYS.TOKEN_WITHDRAWALS, allWithdrawals);
+
+  // 2. Update Supabase landing_events
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase
+        .from('landing_events')
+        .update({
+          session_id: 'paid',
+          metadata: {
+            type: 'token_withdrawal_request',
+            ...target,
+          },
+        })
+        .filter('metadata->>id', 'eq', target.id);
+    } catch (err) {
+      console.error('Failed to update withdrawal status in Supabase:', err);
+    }
+  }
+
+  // 3. Deduct from Token Stock and lock sharing if stock is depleted
+  const currentSettings = await getTokenRewardSettings();
+  const newStock = Math.max(0, currentSettings.tokenStock - target.amount);
+  const newDistributed = (currentSettings.totalDistributed || 0) + target.amount;
+  const isSharingEnabled = newStock > 0 ? currentSettings.isSharingEnabled !== false : false;
+
+  await updateTokenRewardSettings(
+    {
+      tokenStock: newStock,
+      totalDistributed: newDistributed,
+      isSharingEnabled,
+    },
+    adminId
+  );
+
+  // 4. Audit log
+  await logAdminAction(adminId, 'PAY_TOKEN_WITHDRAWAL', 'token_withdrawal', target.id, {
+    amount: target.amount,
+    wallet: target.walletAddress,
+    txHash: cleanHash,
+    remainingStock: newStock,
+    sharingLocked: !isSharingEnabled,
+  });
+
+  return {
+    success: true,
+    message: `Pagamento de ${target.amount} BXS confirmado com sucesso! A Hash da transação foi vinculada e o estoque restante é de ${newStock} BXS.`,
+    withdrawal: target,
+    remainingStock: newStock,
+    stockDepleted: newStock <= 0,
+  };
+}
+
+export async function getAllUsersTokenBalances(): Promise<UserTokenBalance[]> {
+  const users = await getAllUsers();
+  const allShares = await getAllTokenShares();
+  const allWithdrawals = await getAllTokenWithdrawals();
+
+  const sharesByUser = new Map<string, VideoShareRecord[]>();
+  for (const s of allShares) {
+    const list = sharesByUser.get(s.userId) || [];
+    list.push(s);
+    sharesByUser.set(s.userId, list);
+  }
+
+  const withdrawalsByUser = new Map<string, TokenWithdrawalRequest[]>();
+  for (const w of allWithdrawals) {
+    const list = withdrawalsByUser.get(w.userId) || [];
+    list.push(w);
+    withdrawalsByUser.set(w.userId, list);
+  }
+
+  const allUserIds = new Set<string>([
+    ...users.map((u) => u.id),
+    ...Array.from(sharesByUser.keys()),
+  ]);
+
+  const results: UserTokenBalance[] = [];
+
+  for (const uId of allUserIds) {
+    const user = users.find((u) => u.id === uId);
+    const userShares = sharesByUser.get(uId) || [];
+    const userWithdrawals = withdrawalsByUser.get(uId) || [];
+
+    const totalEarned = userShares.reduce((acc, s) => acc + (s.tokensAwarded || 1), 0);
+    const paidWithdrawn = userWithdrawals
+      .filter((w) => w.status === 'paid')
+      .reduce((acc, w) => acc + (w.amount || 0), 0);
+    const pendingWithdrawn = userWithdrawals
+      .filter((w) => w.status === 'pending')
+      .reduce((acc, w) => acc + (w.amount || 0), 0);
+
+    const currentBalance = Math.max(0, totalEarned - paidWithdrawn - pendingWithdrawn);
+
+    results.push({
+      userId: uId,
+      userName: user?.name || userShares[0]?.userName || 'Usuário',
+      userEmail: user?.email || userShares[0]?.userEmail || '',
+      currentBalance,
+      totalShares: userShares.length,
+      totalWithdrawn: paidWithdrawn,
+      pendingWithdrawal: pendingWithdrawn,
+    });
+  }
+
+  return results.sort((a, b) => b.currentBalance - a.currentBalance || b.totalShares - a.totalShares);
 }

@@ -141,17 +141,28 @@ export function HeroSection({
 
           {/* Action CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href={registrationUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={onRegistrationClick}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl text-base font-bold text-white shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0"
-              style={{ backgroundColor: brand.primaryColor || '#2563eb' }}
-            >
-              <span>{hero.primaryCtaText}</span>
-              <ArrowRight className="w-5 h-5" />
-            </a>
+            {registrationUrl ? (
+              <a
+                href={registrationUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onRegistrationClick}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl text-base font-bold text-white shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0"
+                style={{ backgroundColor: brand.primaryColor || '#2563eb' }}
+              >
+                <span>{hero.primaryCtaText}</span>
+                <ArrowRight className="w-5 h-5" />
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() => alert('O link de cadastro não está configurado nesta página.')}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl text-base font-bold text-slate-300 bg-slate-800/90 border border-slate-700/80 cursor-pointer transition-all duration-200 hover:bg-slate-700/80"
+                title="Link de cadastro não configurado"
+              >
+                <span>{hero.primaryCtaText}</span>
+              </button>
+            )}
 
             {whatsAppUrl && (
               <a

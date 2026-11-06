@@ -24,6 +24,7 @@ import { AdminMetricsOverview } from '@/components/admin/AdminMetricsOverview';
 import { AdminLeaderboard } from '@/components/admin/AdminLeaderboard';
 import { AdminChatModeration } from '@/components/admin/AdminChatModeration';
 import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
+import { AdminTokenRewards } from '@/components/admin/AdminTokenRewards';
 import { AdminAuditTable } from '@/components/admin/AdminAuditTable';
 import { VersionHistoryModal } from '@/components/admin/VersionHistoryModal';
 import { ChangePasswordModal } from '@/components/admin/ChangePasswordModal';
@@ -207,6 +208,11 @@ export default function AdminDashboardPage() {
               <AdminChatModeration currentAdmin={currentUser} />
             </div>
           )}
+
+          {/* Feature 4: Programa de Recompensas em Tokens BXS & Solicitações de Saque */}
+          <div id="rewards">
+            <AdminTokenRewards />
+          </div>
 
           {/* Users Table */}
           <AdminUsersTable

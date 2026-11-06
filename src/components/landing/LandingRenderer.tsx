@@ -44,22 +44,34 @@ export function LandingRenderer({
   const activeFont = FONT_FAMILY_MAP[content.brand?.fontFamily || 'Inter'] || FONT_FAMILY_MAP['Inter'];
   // 1. Resolve registration URL: user's personal link or master default
   const registrationUrl = useMemo(() => {
-    if (user?.settings?.registration_url && user.settings.registration_url.trim()) {
-      return user.settings.registration_url.trim();
+    // If viewing a partner's personalized clone
+    if (user) {
+      if (user.settings?.registration_url && user.settings.registration_url.trim()) {
+        return user.settings.registration_url.trim();
+      }
+      // Partner cleared or does not have a registration URL: do not force master redirect
+      return '';
     }
-    return content.defaultSettings.registrationUrl || '#';
+    // Viewing official root master page
+    return content.defaultSettings.registrationUrl || '';
   }, [user, content]);
 
   // 2. Resolve WhatsApp URL: user's WhatsApp or master default
   const whatsAppUrl = useMemo(() => {
-    if (user?.settings?.whatsapp_number && user.settings.whatsapp_number.trim()) {
-      return buildWhatsAppUrl(
-        user.settings.whatsapp_country_code || '+55',
-        user.settings.whatsapp_number,
-        user.settings.whatsapp_message || content.defaultSettings.whatsappMessage
-      );
+    // If viewing a partner's personalized clone
+    if (user) {
+      if (user.settings?.whatsapp_number && user.settings.whatsapp_number.trim()) {
+        return buildWhatsAppUrl(
+          user.settings.whatsapp_country_code || '+55',
+          user.settings.whatsapp_number,
+          user.settings.whatsapp_message || content.defaultSettings.whatsappMessage
+        );
+      }
+      // Partner cleared or does not have WhatsApp: do not force master WhatsApp redirect
+      return '';
     }
-    if (content.defaultSettings.whatsappNumber) {
+    // Viewing official root master page
+    if (content.defaultSettings.whatsappNumber && content.defaultSettings.whatsappNumber.trim()) {
       return buildWhatsAppUrl(
         content.defaultSettings.whatsappCountryCode || '+55',
         content.defaultSettings.whatsappNumber,
@@ -178,7 +190,12 @@ export function LandingRenderer({
         />
 
         {/* Videos Section */}
-        <VideosSection videosSection={content.videosSection} />
+        <VideosSection
+          videosSection={content.videosSection}
+          user={user}
+          tokenRewardSettings={content.tokenRewardSettings}
+          landingUrl={typeof window !== 'undefined' ? window.location.href : (user ? `/p/${user.slug}` : '/')}
+        />
 
         {/* Official Channels & Live Meeting Rooms */}
         <OfficialChannelsSection

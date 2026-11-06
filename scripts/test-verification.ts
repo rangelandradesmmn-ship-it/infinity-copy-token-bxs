@@ -17,6 +17,8 @@ import {
   generateSlug,
   validateImageFile,
   formatVideoEmbedUrl,
+  validateSocialPostUrl,
+  isValidBscWalletAddress,
 } from '../src/lib/security';
 import {
   authenticateUser,
@@ -33,6 +35,14 @@ import {
   recordChatParticipantPresence,
   getActiveChatParticipants,
   normalizeLandingPageContent,
+  getTokenRewardSettings,
+  updateTokenRewardSettings,
+  recordVideoShareVerification,
+  getUserTokenBalance,
+  requestTokenWithdrawal,
+  payTokenWithdrawal,
+  getAllUsersTokenBalances,
+  getAllTokenWithdrawals,
 } from '../src/lib/dataService';
 import { supabase, isSupabaseConfigured } from '../src/lib/supabase';
 
@@ -797,6 +807,153 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
     customBackoffice.defaultSettings.backofficeButtonText === 'Entrar no Escritório',
     '88. Super Admin personaliza a URL e o texto do botão do Backoffice com sincronização total'
   );
+
+  console.log('\n--- MÓDULO 24: PROGRAMA DE RECOMPENSAS EM TOKENS BXS & SAQUES BEP-20 ---');
+
+  // 89. Validação de URLs públicas de redes sociais
+  const validTwitterUrl = validateSocialPostUrl('https://x.com/usuario/status/1234567890123456789');
+  const validFbUrl = validateSocialPostUrl('https://www.facebook.com/usuario/posts/pfbid0xyz123');
+  const validInstaUrl = validateSocialPostUrl('https://www.instagram.com/p/Cxyz1234567/');
+  const invalidLocalUrl = validateSocialPostUrl('http://localhost:3000/teste');
+  const invalidDomainUrl = validateSocialPostUrl('https://site-aleatorio.com/post/123');
+  assert(
+    validTwitterUrl.isValid &&
+    validFbUrl.isValid &&
+    validInstaUrl.isValid &&
+    !invalidLocalUrl.isValid &&
+    !invalidDomainUrl.isValid,
+    '89. Validação de URLs públicas de redes sociais aprova postagens autênticas e bloqueia URLs fraudulentas'
+  );
+
+  // 90. Validação de endereço de carteira BSC (BEP-20)
+  const validBscWallet = isValidBscWalletAddress('0xadcea94f46ce8a87b890d7da9a444b4a21811a76');
+  const invalidBscWallet = isValidBscWalletAddress('0xinvalid-address-1234');
+  const invalidShortWallet = isValidBscWalletAddress('0x123');
+  assert(
+    validBscWallet && !invalidBscWallet && !invalidShortWallet,
+    '90. Validação de endereço de carteira BEP-20 (BSC) garante formato EVM/0x correto com 42 caracteres'
+  );
+
+  // 91. Normalização de conteúdo com TokenRewardSettings
+  const normalizedWithRewards = normalizeLandingPageContent({});
+  assert(
+    normalizedWithRewards.tokenRewardSettings !== undefined &&
+    normalizedWithRewards.tokenRewardSettings.tokenStock === 5000 &&
+    normalizedWithRewards.tokenRewardSettings.minWithdrawal === 100 &&
+    normalizedWithRewards.tokenRewardSettings.rewardPerShare === 1 &&
+    normalizedWithRewards.tokenRewardSettings.isSharingEnabled === true,
+    '91. Normalização injeta configurações padrão completas do Programa de Tokens BXS'
+  );
+
+  // 92. Super Admin consulta e edita o estoque e o mínimo de retirada
+  const updatedSettings = await updateTokenRewardSettings({
+    tokenStock: 3000,
+    minWithdrawal: 50,
+    rewardPerShare: 1,
+    isSharingEnabled: true,
+  });
+  assert(
+    updatedSettings.tokenStock === 3000 &&
+    updatedSettings.minWithdrawal === 50 &&
+    updatedSettings.isSharingEnabled === true,
+    '92. Super Admin altera estoque de tokens disponíveis e valor mínimo de retirada com sucesso'
+  );
+
+  // 93. Registro de compartilhamento comprovado credita 1 token BXS
+  const testUserId = `test-user-bxs-${Date.now()}`;
+  const uniquePostUrl = `https://x.com/teste/status/${Date.now()}`;
+  const shareResult = await recordVideoShareVerification({
+    userId: testUserId,
+    userName: 'Tester BXS',
+    userEmail: 'tester.bxs@infinitycopy.com',
+    videoId: 'vid-demo-01',
+    videoTitle: 'Apresentação Oficial da Infinity Copy',
+    postUrl: uniquePostUrl,
+  });
+  assert(
+    shareResult.success && shareResult.tokensAwarded === 1,
+    '93. Compartilhamento comprovado de vídeo credita com sucesso +1 token BXS ao usuário'
+  );
+
+  // 94. Prevenção de duplicidade com a mesma URL de postagem
+  const duplicateShareResult = await recordVideoShareVerification({
+    userId: testUserId,
+    userName: 'Tester BXS',
+    userEmail: 'tester.bxs@infinitycopy.com',
+    videoId: 'vid-demo-01',
+    videoTitle: 'Apresentação Oficial da Infinity Copy',
+    postUrl: uniquePostUrl,
+  });
+  assert(
+    !duplicateShareResult.success &&
+    (duplicateShareResult.message?.includes('já foi submetida') ||
+     duplicateShareResult.message?.includes('já foi utilizada')),
+    '94. Sistema antifraude bloqueia submissão duplicada da mesma URL de postagem'
+  );
+
+  // 95. Cálculo fiel de saldo do usuário
+  const initialBalance = await getUserTokenBalance(testUserId);
+  assert(
+    initialBalance.currentBalance === 1 &&
+    initialBalance.totalShares === 1 &&
+    initialBalance.totalWithdrawn === 0,
+    '95. Cálculo fiel de saldo disponível do usuário contabiliza corretamente os ganhos'
+  );
+
+  // 96. Bloqueio de saque quando saldo é inferior ao mínimo configurado
+  const prematureWithdrawal = await requestTokenWithdrawal({
+    userId: testUserId,
+    userName: 'Tester BXS',
+    userEmail: 'tester.bxs@infinitycopy.com',
+    amount: 1,
+    walletAddress: '0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+  });
+  assert(
+    !prematureWithdrawal.success &&
+    prematureWithdrawal.message?.includes('Saldo insuficiente'),
+    '96. Solicitação de retirada bloqueada quando o saldo é inferior ao mínimo estipulado (ex: 50 BXS)'
+  );
+
+  // 97. Ajuste do mínimo para teste e solicitação de saque autorizada
+  await updateTokenRewardSettings({ minWithdrawal: 1 });
+  const validWithdrawal = await requestTokenWithdrawal({
+    userId: testUserId,
+    userName: 'Tester BXS',
+    userEmail: 'tester.bxs@infinitycopy.com',
+    amount: 1,
+    walletAddress: '0xadcea94f46ce8a87b890d7da9a444b4a21811a76',
+  });
+  assert(
+    validWithdrawal.success &&
+    validWithdrawal.withdrawal?.status === 'pending' &&
+    validWithdrawal.withdrawal?.amount === 1,
+    '97. Solicitação de saque elegível é criada com status pendente e vinculada à carteira BEP-20'
+  );
+
+  // 98. Pagamento pelo Admin com Hash BSC, desconto do estoque e link BscScan
+  const withdrawalId = validWithdrawal.withdrawal!.id;
+  const mockBscTxHash = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+  const payResult = await payTokenWithdrawal(withdrawalId, mockBscTxHash, 'user-rangel-0001');
+  const allWithdrawalsAfter = await getAllTokenWithdrawals();
+  const paidRecord = allWithdrawalsAfter.find((w) => w.id === withdrawalId);
+  const settingsAfterPayment = await getTokenRewardSettings();
+
+  assert(
+    payResult.success &&
+    paidRecord !== undefined &&
+    paidRecord.status === 'paid' &&
+    paidRecord.txHash === mockBscTxHash &&
+    settingsAfterPayment.tokenStock < 3000,
+    '98. Super Admin quita saque informando Hash BSC, atualiza status para pago e debita do estoque de tokens disponíveis'
+  );
+
+  // Teardown / Restauração dos padrões de recompensas
+  await updateTokenRewardSettings({
+    tokenStock: 5000,
+    minWithdrawal: 100,
+    rewardPerShare: 1,
+    isSharingEnabled: true,
+  });
 
   // Limpeza de teardown dos testes: remove mensagens e presenças temporárias do banco
   const testMessageIds = [

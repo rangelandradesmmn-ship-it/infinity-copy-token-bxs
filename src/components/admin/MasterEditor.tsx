@@ -45,6 +45,7 @@ import {
   MessageCircle,
   Clock,
   ExternalLink,
+  Coins,
 } from 'lucide-react';
 import { FONT_FAMILY_MAP } from '@/components/landing/LandingRenderer';
 
@@ -2104,6 +2105,155 @@ export function MasterEditor({
                 }
                 className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs font-mono"
               />
+            </div>
+          </div>
+
+          {/* Subseção: Programa de Recompensas por Compartilhamento de Vídeos */}
+          <div className="pt-6 border-t border-slate-800 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Coins className="w-4 h-4 text-amber-400" />
+                  Programa de Recompensas em Tokens BXS (Vídeos da Galeria)
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Gerencie o estoque de tokens, o valor de retirada mínima e autorize o compartilhamento público.
+                </p>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-slate-300 font-semibold cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={content.tokenRewardSettings?.isSharingEnabled ?? true}
+                  disabled={(content.tokenRewardSettings?.tokenStock ?? 5000) <= 0}
+                  onChange={(e) =>
+                    setContent((prev) => ({
+                      ...prev,
+                      tokenRewardSettings: {
+                        ...(prev.tokenRewardSettings || {
+                          tokenStock: 5000,
+                          minWithdrawal: 100,
+                          rewardPerShare: 1,
+                          isSharingEnabled: true,
+                          totalDistributed: 0,
+                        }),
+                        isSharingEnabled: e.target.checked,
+                      },
+                    }))
+                  }
+                  className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500"
+                />
+                <span>
+                  {(content.tokenRewardSettings?.tokenStock ?? 5000) <= 0
+                    ? 'Travado (Estoque Zerado)'
+                    : 'Permitir Compartilhamento com Recompensa'}
+                </span>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Estoque de Tokens BXS Disponíveis
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={content.tokenRewardSettings?.tokenStock ?? 5000}
+                  onChange={(e) => {
+                    const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                    setContent((prev) => ({
+                      ...prev,
+                      tokenRewardSettings: {
+                        ...(prev.tokenRewardSettings || {
+                          tokenStock: 5000,
+                          minWithdrawal: 100,
+                          rewardPerShare: 1,
+                          isSharingEnabled: true,
+                          totalDistributed: 0,
+                        }),
+                        tokenStock: val,
+                        isSharingEnabled:
+                          val > 0 ? prev.tokenRewardSettings?.isSharingEnabled ?? true : false,
+                      },
+                    }));
+                  }}
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-amber-400 font-bold text-xs"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  {(content.tokenRewardSettings?.tokenStock ?? 5000) <= 0 ? (
+                    <span className="text-red-400 font-bold">
+                      Estoque zerado! Compartilhamentos travados automaticamente.
+                    </span>
+                  ) : (
+                    'Descontado conforme os saques dos usuários forem pagos.'
+                  )}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Retirada Mínima Exigida (BXS)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={content.tokenRewardSettings?.minWithdrawal ?? 100}
+                  onChange={(e) => {
+                    const val = Math.max(1, parseInt(e.target.value, 10) || 100);
+                    setContent((prev) => ({
+                      ...prev,
+                      tokenRewardSettings: {
+                        ...(prev.tokenRewardSettings || {
+                          tokenStock: 5000,
+                          minWithdrawal: 100,
+                          rewardPerShare: 1,
+                          isSharingEnabled: true,
+                          totalDistributed: 0,
+                        }),
+                        minWithdrawal: val,
+                      },
+                    }));
+                  }}
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-xs"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Padrão 100 moedas acumuladas. Editável pelo Super Admin.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Recompensa por Vídeo Compartilhado (BXS)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={content.tokenRewardSettings?.rewardPerShare ?? 1}
+                  onChange={(e) => {
+                    const val = Math.max(1, parseInt(e.target.value, 10) || 1);
+                    setContent((prev) => ({
+                      ...prev,
+                      tokenRewardSettings: {
+                        ...(prev.tokenRewardSettings || {
+                          tokenStock: 5000,
+                          minWithdrawal: 100,
+                          rewardPerShare: 1,
+                          isSharingEnabled: true,
+                          totalDistributed: 0,
+                        }),
+                        rewardPerShare: val,
+                      },
+                    }));
+                  }}
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-emerald-400 font-bold text-xs"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Creditado para cada postagem pública comprovada.
+                </p>
+              </div>
             </div>
           </div>
         </div>

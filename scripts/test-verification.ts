@@ -955,6 +955,51 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
     isSharingEnabled: true,
   });
 
+  console.log('\n--- MÓDULO 25: BOTÃO SIMULADOR ONLINE NO CABEÇALHO & SUPER ADMIN ---');
+
+  // 99. URL padrão e texto do botão Simulador Online no schema inicial
+  assert(
+    initialLandingPageContent.defaultSettings.simulatorUrl === 'https://calculadora-bxsignals.vercel.app/' &&
+    initialLandingPageContent.defaultSettings.simulatorButtonText === 'SIMULADOR ONLINE' &&
+    initialLandingPageContent.defaultSettings.simulatorEnabled === true,
+    '99. Padrões da Matriz possuem URL do Simulador https://calculadora-bxsignals.vercel.app/, texto "SIMULADOR ONLINE" e status ativo'
+  );
+
+  // 100. Normalização garante fallback automático para o Simulador
+  const normalizedSimFallback = normalizeLandingPageContent({
+    defaultSettings: {
+      registrationUrl: 'https://exemplo.com',
+      whatsappCountryCode: '+55',
+      whatsappNumber: '11999999999',
+      whatsappMessage: 'Olá',
+    },
+  } as any);
+  assert(
+    normalizedSimFallback.defaultSettings.simulatorUrl === 'https://calculadora-bxsignals.vercel.app/' &&
+    normalizedSimFallback.defaultSettings.simulatorButtonText === 'SIMULADOR ONLINE' &&
+    normalizedSimFallback.defaultSettings.simulatorEnabled === true,
+    '100. Normalização injeta com fidelidade o Simulador Online oficial quando omitido em versões anteriores'
+  );
+
+  // 101. Super Admin personaliza a URL e o texto do Simulador com toggle de ativação
+  const customSimulator = normalizeLandingPageContent({
+    defaultSettings: {
+      registrationUrl: 'https://exemplo.com',
+      whatsappCountryCode: '+55',
+      whatsappNumber: '11999999999',
+      whatsappMessage: 'Olá',
+      simulatorUrl: 'https://minha-calculadora.com',
+      simulatorButtonText: 'CALCULAR MEUS GANHOS',
+      simulatorEnabled: false,
+    },
+  } as any);
+  assert(
+    customSimulator.defaultSettings.simulatorUrl === 'https://minha-calculadora.com' &&
+    customSimulator.defaultSettings.simulatorButtonText === 'CALCULAR MEUS GANHOS' &&
+    customSimulator.defaultSettings.simulatorEnabled === false,
+    '101. Super Admin personaliza a URL, texto e toggle do botão SIMULADOR ONLINE com total flexibilidade'
+  );
+
   // Limpeza de teardown dos testes: remove mensagens e presenças temporárias do banco
   const testMessageIds = [
     offlinePrivateMsg?.message?.id,

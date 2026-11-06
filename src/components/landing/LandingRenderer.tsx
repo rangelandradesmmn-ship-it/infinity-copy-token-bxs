@@ -97,6 +97,17 @@ export function LandingRenderer({
 
   const backofficeEnabled = content.defaultSettings?.backofficeEnabled !== false;
 
+  // 5. Resolve simulator URL & button settings
+  const simulatorUrl = useMemo(() => {
+    return content.defaultSettings?.simulatorUrl || 'https://calculadora-bxsignals.vercel.app/';
+  }, [content.defaultSettings?.simulatorUrl]);
+
+  const simulatorButtonText = useMemo(() => {
+    return content.defaultSettings?.simulatorButtonText || 'SIMULADOR ONLINE';
+  }, [content.defaultSettings?.simulatorButtonText]);
+
+  const simulatorEnabled = content.defaultSettings?.simulatorEnabled !== false;
+
   // Page path for telemetry
   const pagePath = user ? `/p/${user.slug}` : '/';
 
@@ -174,6 +185,9 @@ export function LandingRenderer({
         backofficeUrl={backofficeUrl}
         backofficeButtonText={backofficeButtonText}
         backofficeEnabled={backofficeEnabled}
+        simulatorUrl={simulatorUrl}
+        simulatorButtonText={simulatorButtonText}
+        simulatorEnabled={simulatorEnabled}
       />
 
       <main className="flex-1">

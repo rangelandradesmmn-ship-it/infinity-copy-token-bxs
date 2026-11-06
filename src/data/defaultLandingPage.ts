@@ -253,6 +253,9 @@ export const initialLandingPageContent: LandingPageContent = {
     backofficeUrl: 'https://www.infinitycopy.pro/login',
     backofficeButtonText: 'Acessar backoffice',
     backofficeEnabled: true,
+    simulatorUrl: 'https://calculadora-bxsignals.vercel.app/',
+    simulatorButtonText: 'SIMULADOR ONLINE',
+    simulatorEnabled: true,
   },
   tokenRewardSettings: {
     tokenStock: 5000,

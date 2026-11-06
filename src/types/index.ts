@@ -186,6 +186,9 @@ export interface LandingPageContent {
     backofficeUrl?: string;
     backofficeButtonText?: string;
     backofficeEnabled?: boolean;
+    simulatorUrl?: string;
+    simulatorButtonText?: string;
+    simulatorEnabled?: boolean;
   };
   tokenRewardSettings?: TokenRewardSettings;
 }

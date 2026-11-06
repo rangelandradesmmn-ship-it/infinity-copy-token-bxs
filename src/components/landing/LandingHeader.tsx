@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { UserWithSettings, LandingPageContent } from '@/types';
-import { MessageCircle, LogIn, ShieldCheck, ExternalLink } from 'lucide-react';
+import { MessageCircle, LogIn, ShieldCheck, ExternalLink, Calculator } from 'lucide-react';
 
 interface LandingHeaderProps {
   brand: LandingPageContent['brand'];
@@ -14,6 +14,9 @@ interface LandingHeaderProps {
   backofficeUrl?: string;
   backofficeButtonText?: string;
   backofficeEnabled?: boolean;
+  simulatorUrl?: string;
+  simulatorButtonText?: string;
+  simulatorEnabled?: boolean;
 }
 
 export function LandingHeader({
@@ -25,6 +28,9 @@ export function LandingHeader({
   backofficeUrl = 'https://www.infinitycopy.pro/login',
   backofficeButtonText = 'Acessar backoffice',
   backofficeEnabled = true,
+  simulatorUrl = 'https://calculadora-bxsignals.vercel.app/',
+  simulatorButtonText = 'SIMULADOR ONLINE',
+  simulatorEnabled = true,
 }: LandingHeaderProps) {
   return (
     <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-slate-950/80 border-b border-slate-800/80">
@@ -72,6 +78,20 @@ export function LandingHeader({
             >
               <MessageCircle className="w-4 h-4" />
               <span className="hidden sm:inline">WhatsApp</span>
+            </a>
+          )}
+
+          {simulatorEnabled !== false && simulatorUrl && (
+            <a
+              href={simulatorUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-lg text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 border border-emerald-400/30 shadow-sm shadow-emerald-600/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              title={simulatorButtonText || 'SIMULADOR ONLINE'}
+            >
+              <Calculator className="w-3.5 h-3.5 shrink-0 text-emerald-100" />
+              <span className="hidden sm:inline">{simulatorButtonText || 'SIMULADOR ONLINE'}</span>
+              <span className="sm:hidden">Simulador</span>
             </a>
           )}
 

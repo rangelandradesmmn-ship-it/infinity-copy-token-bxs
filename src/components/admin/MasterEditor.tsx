@@ -46,6 +46,7 @@ import {
   Clock,
   ExternalLink,
   Coins,
+  Calculator,
 } from 'lucide-react';
 import { FONT_FAMILY_MAP } from '@/components/landing/LandingRenderer';
 
@@ -1169,6 +1170,12 @@ export function MasterEditor({
                 <span className="hidden sm:inline-block px-3 py-1 rounded-lg bg-emerald-950/70 border border-emerald-500/40 text-emerald-400 text-xs font-semibold">
                   WhatsApp
                 </span>
+                {content.defaultSettings?.simulatorEnabled !== false && (
+                  <span className="px-3 py-1 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold flex items-center gap-1 shadow-sm">
+                    <Calculator className="w-3 h-3 text-emerald-100" />
+                    <span>{content.defaultSettings?.simulatorButtonText || 'SIMULADOR ONLINE'}</span>
+                  </span>
+                )}
                 {content.defaultSettings?.backofficeEnabled !== false && (
                   <span className="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold flex items-center gap-1 shadow-sm">
                     <ExternalLink className="w-3 h-3 text-blue-100" />
@@ -1356,6 +1363,96 @@ export function MasterEditor({
                     }
                     placeholder="Acessar backoffice"
                     className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 2.2. Botão do Simulador Online no Cabeçalho */}
+            <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <Calculator className="w-4 h-4 text-emerald-400" />
+                    Botão "SIMULADOR ONLINE" na Barra de Navegação (Navbar)
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Configuração do botão com link direto para a calculadora de sinais no topo de todas as páginas.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={content.defaultSettings?.simulatorEnabled !== false}
+                    onChange={(e) =>
+                      setContent((prev) => ({
+                        ...prev,
+                        defaultSettings: {
+                          ...prev.defaultSettings,
+                          simulatorEnabled: e.target.checked,
+                        },
+                      }))
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    URL do Simulador Online
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={content.defaultSettings?.simulatorUrl ?? 'https://calculadora-bxsignals.vercel.app/'}
+                      onChange={(e) =>
+                        setContent((prev) => ({
+                          ...prev,
+                          defaultSettings: {
+                            ...prev.defaultSettings,
+                            simulatorUrl: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="https://calculadora-bxsignals.vercel.app/"
+                      className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                    />
+                    {content.defaultSettings?.simulatorUrl && (
+                      <a
+                        href={content.defaultSettings.simulatorUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-xl text-xs font-semibold flex items-center gap-1 shrink-0 transition-colors"
+                        title="Testar Simulador em nova aba"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Testar</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    Nome / Texto do Botão
+                  </label>
+                  <input
+                    type="text"
+                    value={content.defaultSettings?.simulatorButtonText ?? 'SIMULADOR ONLINE'}
+                    onChange={(e) =>
+                      setContent((prev) => ({
+                        ...prev,
+                        defaultSettings: {
+                          ...prev.defaultSettings,
+                          simulatorButtonText: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="SIMULADOR ONLINE"
+                    className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
@@ -2483,6 +2580,96 @@ export function MasterEditor({
                     }
                     placeholder="Acessar backoffice"
                     className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 3.1. Botão do Simulador Online no Cabeçalho */}
+            <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <Calculator className="w-4 h-4 text-emerald-400" />
+                    Botão "SIMULADOR ONLINE" na Barra de Navegação (Navbar)
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Configuração do botão com link direto para a calculadora de sinais no topo de todas as páginas.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={content.defaultSettings?.simulatorEnabled !== false}
+                    onChange={(e) =>
+                      setContent((prev) => ({
+                        ...prev,
+                        defaultSettings: {
+                          ...prev.defaultSettings,
+                          simulatorEnabled: e.target.checked,
+                        },
+                      }))
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    URL do Simulador Online
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={content.defaultSettings?.simulatorUrl ?? 'https://calculadora-bxsignals.vercel.app/'}
+                      onChange={(e) =>
+                        setContent((prev) => ({
+                          ...prev,
+                          defaultSettings: {
+                            ...prev.defaultSettings,
+                            simulatorUrl: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="https://calculadora-bxsignals.vercel.app/"
+                      className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                    />
+                    {content.defaultSettings?.simulatorUrl && (
+                      <a
+                        href={content.defaultSettings.simulatorUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-xl text-xs font-semibold flex items-center gap-1 shrink-0 transition-colors"
+                        title="Testar Simulador em nova aba"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Testar</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    Nome / Texto do Botão
+                  </label>
+                  <input
+                    type="text"
+                    value={content.defaultSettings?.simulatorButtonText ?? 'SIMULADOR ONLINE'}
+                    onChange={(e) =>
+                      setContent((prev) => ({
+                        ...prev,
+                        defaultSettings: {
+                          ...prev.defaultSettings,
+                          simulatorButtonText: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="SIMULADOR ONLINE"
+                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>

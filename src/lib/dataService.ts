@@ -401,6 +401,18 @@ export function normalizeLandingPageContent(raw: unknown): LandingPageContent {
         c.defaultSettings?.backofficeEnabled !== undefined
           ? c.defaultSettings.backofficeEnabled
           : initialLandingPageContent.defaultSettings.backofficeEnabled,
+      simulatorUrl:
+        c.defaultSettings?.simulatorUrl !== undefined
+          ? c.defaultSettings.simulatorUrl
+          : initialLandingPageContent.defaultSettings.simulatorUrl,
+      simulatorButtonText:
+        c.defaultSettings?.simulatorButtonText !== undefined
+          ? c.defaultSettings.simulatorButtonText
+          : initialLandingPageContent.defaultSettings.simulatorButtonText,
+      simulatorEnabled:
+        c.defaultSettings?.simulatorEnabled !== undefined
+          ? c.defaultSettings.simulatorEnabled
+          : initialLandingPageContent.defaultSettings.simulatorEnabled,
     },
     officialChannels: c.officialChannels
       ? { ...initialLandingPageContent.officialChannels!, ...c.officialChannels }

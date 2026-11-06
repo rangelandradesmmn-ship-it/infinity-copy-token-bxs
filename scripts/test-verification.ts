@@ -43,6 +43,9 @@ import {
   payTokenWithdrawal,
   getAllUsersTokenBalances,
   getAllTokenWithdrawals,
+  canUserShareVideoToday,
+  isSameCalendarDay,
+  getUserTodayShares,
 } from '../src/lib/dataService';
 import { supabase, isSupabaseConfigured } from '../src/lib/supabase';
 
@@ -861,13 +864,15 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
 
   // 93. Registro de compartilhamento comprovado credita 1 token BXS
   const testUserId = `test-user-bxs-${Date.now()}`;
+  const testUserEmail = `tester.bxs.${Date.now()}@infinitycopy.com`;
+  const testVideoId = `vid-demo-${Date.now()}`;
   const uniquePostUrl = `https://x.com/teste/status/${Date.now()}`;
   const shareResult = await recordVideoShareVerification({
     userId: testUserId,
     userName: 'Tester BXS',
-    userEmail: 'tester.bxs@infinitycopy.com',
-    videoId: 'vid-demo-01',
-    videoTitle: 'Apresentação Oficial da Infinity Copy',
+    userEmail: testUserEmail,
+    videoId: testVideoId,
+    videoTitle: `Apresentação Oficial ${Date.now()}`,
     postUrl: uniquePostUrl,
   });
   assert(
@@ -877,11 +882,11 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
 
   // 94. Prevenção de duplicidade com a mesma URL de postagem
   const duplicateShareResult = await recordVideoShareVerification({
-    userId: testUserId,
-    userName: 'Tester BXS',
-    userEmail: 'tester.bxs@infinitycopy.com',
-    videoId: 'vid-demo-01',
-    videoTitle: 'Apresentação Oficial da Infinity Copy',
+    userId: `other-user-${Date.now()}`,
+    userName: 'Outro Usuário',
+    userEmail: `outro.${Date.now()}@infinitycopy.com`,
+    videoId: `other-vid-${Date.now()}`,
+    videoTitle: `Outro Vídeo ${Date.now()}`,
     postUrl: uniquePostUrl,
   });
   assert(
@@ -998,6 +1003,72 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
     customSimulator.defaultSettings.simulatorButtonText === 'CALCULAR MEUS GANHOS' &&
     customSimulator.defaultSettings.simulatorEnabled === false,
     '101. Super Admin personaliza a URL, texto e toggle do botão SIMULADOR ONLINE com total flexibilidade'
+  );
+
+  console.log('\n--- MÓDULO 26: LIMITE DIÁRIO DE 1 COMPARTILHAMENTO POR VÍDEO & RESET À MEIA-NOITE ---');
+
+  const testDailyUserId = `test-daily-user-${Date.now()}`;
+  const testVideo1Id = 'vid-apresentacao-oficial';
+  const testVideo2Id = 'vid-tutorial-backoffice';
+
+  // 102. Primeiro compartilhamento do vídeo 1 hoje é aprovado e creditado
+  const firstShareResult = await recordVideoShareVerification({
+    userId: testDailyUserId,
+    userName: 'Usuário Teste Diário',
+    userEmail: 'teste.diario@infinitycopy.com',
+    videoId: testVideo1Id,
+    videoTitle: 'Apresentação Oficial Infinity Copy',
+    postUrl: `https://www.facebook.com/teste/posts/${Date.now()}_1`,
+  });
+  assert(
+    firstShareResult.success && firstShareResult.tokensAwarded === 1,
+    '102. Primeiro compartilhamento do vídeo no dia é aprovado com sucesso e credita 1 BXS'
+  );
+
+  // 103. Segunda tentativa do mesmo vídeo no mesmo dia é bloqueada com notificação explicativa
+  const duplicateSameDayResult = await recordVideoShareVerification({
+    userId: testDailyUserId,
+    userName: 'Usuário Teste Diário',
+    userEmail: 'teste.diario@infinitycopy.com',
+    videoId: testVideo1Id,
+    videoTitle: 'Apresentação Oficial Infinity Copy',
+    postUrl: `https://www.facebook.com/teste/posts/${Date.now()}_2`,
+  });
+  assert(
+    !duplicateSameDayResult.success &&
+    duplicateSameDayResult.message.includes('já foi compartilhado por você hoje') &&
+    duplicateSameDayResult.message.includes('1 vez cada vídeo da galeria por dia') &&
+    duplicateSameDayResult.message.includes('meia-noite'),
+    '103. Segunda tentativa do mesmo vídeo no mesmo dia é bloqueada com notificação de limite diário e sugestão dos outros vídeos'
+  );
+
+  // 104. Compartilhamento de outro vídeo distinto no mesmo dia é aprovado com sucesso
+  const secondDifferentVideoResult = await recordVideoShareVerification({
+    userId: testDailyUserId,
+    userName: 'Usuário Teste Diário',
+    userEmail: 'teste.diario@infinitycopy.com',
+    videoId: testVideo2Id,
+    videoTitle: 'Tutorial Completo do Backoffice',
+    postUrl: `https://www.facebook.com/teste/posts/${Date.now()}_3`,
+  });
+  assert(
+    secondDifferentVideoResult.success && secondDifferentVideoResult.tokensAwarded === 1,
+    '104. Compartilhamento de outro vídeo diferente da galeria no mesmo dia é aprovado com sucesso somando novo crédito'
+  );
+
+  // 105. Verificação de reset à meia-noite: no dia seguinte o mesmo vídeo 1 volta a ser permitido
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1); // Dia seguinte (passou da meia-noite)
+  const canShareTomorrow = await canUserShareVideoToday({
+    userId: testDailyUserId,
+    userEmail: 'teste.diario@infinitycopy.com',
+    videoId: testVideo1Id,
+    videoTitle: 'Apresentação Oficial Infinity Copy',
+    referenceDate: tomorrowDate,
+  });
+  assert(
+    canShareTomorrow.canShare === true,
+    '105. Autorização diária renovada à meia-noite: usuário pode compartilhar o vídeo novamente no dia seguinte'
   );
 
   // Limpeza de teardown dos testes: remove mensagens e presenças temporárias do banco

@@ -1,9 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { VideoItem, UserWithSettings, TokenRewardSettings } from '@/types';
-import { recordVideoShareVerification, getCurrentSessionUser, getChatVisitorAuth } from '@/lib/dataService';
+import {
+  recordVideoShareVerification,
+  getCurrentSessionUser,
+  getChatVisitorAuth,
+  canUserShareVideoToday,
+} from '@/lib/dataService';
 import {
   Share2,
   X,
@@ -43,7 +48,61 @@ export function VideoShareModal({
   const [visitorEmail, setVisitorEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [alreadySharedToday, setAlreadySharedToday] = useState(false);
+  const [checkingDailyShare, setCheckingDailyShare] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function checkDaily() {
+      setCheckingDailyShare(true);
+      try {
+        let uId = user?.id;
+        let uEmail = user?.email;
+        if (!uId) {
+          const session = await getCurrentSessionUser();
+          if (session) {
+            uId = session.id;
+            uEmail = session.email;
+          } else {
+            const visitor = getChatVisitorAuth();
+            if (visitor) {
+              uId = visitor.id;
+              uEmail = visitor.email;
+            }
+          }
+        }
+        if (!uEmail && visitorEmail.trim()) {
+          uEmail = visitorEmail.trim();
+        }
+
+        if (uId || uEmail) {
+          const check = await canUserShareVideoToday({
+            userId: uId,
+            userEmail: uEmail,
+            videoId: video.id,
+            videoTitle: video.title,
+          });
+          if (isMounted) {
+            setAlreadySharedToday(!check.canShare);
+          }
+        } else {
+          if (isMounted) setAlreadySharedToday(false);
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (isMounted) setCheckingDailyShare(false);
+      }
+    }
+
+    if (isOpen) {
+      checkDaily();
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, user, video, visitorEmail]);
 
   if (!isOpen) return null;
 
@@ -106,6 +165,15 @@ export function VideoShareModal({
       return;
     }
 
+    if (alreadySharedToday) {
+      setFeedback({
+        type: 'error',
+        message:
+          'Este vídeo já foi compartilhado por você hoje! Só é permitido compartilhar 1 vez cada vídeo da galeria por dia (liberado novamente à meia-noite). Compartilhe os outros vídeos disponíveis na galeria para continuar acumulando Tokens BXS.',
+      });
+      return;
+    }
+
     if (!postUrl.trim()) {
       setFeedback({
         type: 'error',
@@ -163,6 +231,7 @@ export function VideoShareModal({
       if (res.success) {
         setFeedback({ type: 'success', message: res.message });
         setPostUrl('');
+        setAlreadySharedToday(true);
         try {
           confetti({
             particleCount: 80,
@@ -172,6 +241,9 @@ export function VideoShareModal({
         } catch {}
         if (onShareCompleted) onShareCompleted();
       } else {
+        if (res.message && res.message.includes('já foi compartilhado por você hoje')) {
+          setAlreadySharedToday(true);
+        }
         setFeedback({ type: 'error', message: res.message });
       }
     } catch {
@@ -249,6 +321,26 @@ export function VideoShareModal({
           </span>
           <p className="text-sm font-bold text-white truncate">{video.title}</p>
         </div>
+
+        {/* Already Shared Today Notice */}
+        {alreadySharedToday && (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs mb-5 flex items-start gap-3">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-amber-300">Vídeo Já Compartilhado Hoje</p>
+              <p className="mt-1 text-slate-300 leading-relaxed">
+                Você já compartilhou este vídeo hoje e garantiu sua recompensa! Só é permitido compartilhar <strong>1 vez cada vídeo da galeria por dia</strong>.
+              </p>
+              <p className="mt-1 text-emerald-400 font-medium">
+                ⏰ Novos compartilhamentos liberados todos os dias à <strong>meia-noite (00:00)</strong>.
+              </p>
+              <p className="mt-2 text-amber-400 font-semibold flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                Que tal compartilhar os outros vídeos disponíveis na galeria para continuar ganhando BXS hoje?
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Step 1: Social Networks */}
         <div className="space-y-3 mb-6">
@@ -360,13 +452,22 @@ export function VideoShareModal({
             </button>
             <button
               type="submit"
-              disabled={isStockDepleted || submitting || !postUrl.trim()}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-amber-950/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isStockDepleted || submitting || !postUrl.trim() || alreadySharedToday}
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg transition-all ${
+                alreadySharedToday
+                  ? 'bg-slate-800 text-slate-400 border border-slate-700 cursor-not-allowed opacity-80'
+                  : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-amber-950/40 disabled:opacity-50 disabled:cursor-not-allowed'
+              }`}
             >
               {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Verificando publicação...</span>
+                </>
+              ) : alreadySharedToday ? (
+                <>
+                  <CheckCircle className="w-4 h-4 text-emerald-400" />
+                  <span>Já Compartilhado Hoje (Liberado à meia-noite)</span>
                 </>
               ) : (
                 <>

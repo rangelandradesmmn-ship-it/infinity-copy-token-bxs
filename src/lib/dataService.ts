@@ -1922,7 +1922,7 @@ export async function registerNewUser(
     counter++;
   }
 
-  const userId = `user-uuid-${Date.now()}`;
+  const userId = `user-uuid-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const now = new Date().toISOString();
 
   const newUser: UserProfile = {
@@ -2995,6 +2995,76 @@ export async function getAllTokenShares(): Promise<VideoShareRecord[]> {
   return localShares;
 }
 
+export function isSameCalendarDay(dateStr: string | Date, referenceDate: Date = new Date()): boolean {
+  if (!dateStr) return false;
+  const d = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+  if (isNaN(d.getTime())) return false;
+  return (
+    d.getFullYear() === referenceDate.getFullYear() &&
+    d.getMonth() === referenceDate.getMonth() &&
+    d.getDate() === referenceDate.getDate()
+  );
+}
+
+export async function getUserTodayShares(
+  userIdOrEmail: string,
+  referenceDate: Date = new Date()
+): Promise<VideoShareRecord[]> {
+  if (!userIdOrEmail) return [];
+  const cleanKey = userIdOrEmail.trim().toLowerCase();
+  const all = await getAllTokenShares();
+  return all.filter(
+    (s) =>
+      s.status === 'approved' &&
+      isSameCalendarDay(s.createdAt, referenceDate) &&
+      (s.userId.toLowerCase() === cleanKey || (s.userEmail && s.userEmail.trim().toLowerCase() === cleanKey))
+  );
+}
+
+export async function canUserShareVideoToday(params: {
+  userId?: string;
+  userEmail?: string;
+  videoId: string;
+  videoTitle?: string;
+  referenceDate?: Date;
+}): Promise<{ canShare: boolean; reason?: string }> {
+  const refDate = params.referenceDate || new Date();
+  const all = await getAllTokenShares();
+  const cleanEmail = params.userEmail ? params.userEmail.trim().toLowerCase() : '';
+  const cleanId = params.userId ? params.userId.trim() : '';
+
+  const alreadyShared = all.some((s) => {
+    if (s.status !== 'approved') return false;
+    if (!isSameCalendarDay(s.createdAt, refDate)) return false;
+
+    // Check user identity (by userId or userEmail)
+    const matchesUser =
+      (cleanId && s.userId === cleanId) ||
+      (cleanEmail && s.userEmail && s.userEmail.trim().toLowerCase() === cleanEmail);
+
+    if (!matchesUser) return false;
+
+    // Check video identity (by videoId or videoTitle)
+    const matchesVideo =
+      s.videoId === params.videoId ||
+      (params.videoTitle &&
+        s.videoTitle &&
+        s.videoTitle.trim().toLowerCase() === params.videoTitle.trim().toLowerCase());
+
+    return matchesVideo;
+  });
+
+  if (alreadyShared) {
+    return {
+      canShare: false,
+      reason:
+        'Este vídeo já foi compartilhado por você hoje! Só é permitido compartilhar 1 vez cada vídeo da galeria por dia (liberado novamente à meia-noite). Compartilhe os outros vídeos disponíveis na galeria para continuar acumulando Tokens BXS.',
+    };
+  }
+
+  return { canShare: true };
+}
+
 export async function getUserTokenShares(userId: string): Promise<VideoShareRecord[]> {
   const all = await getAllTokenShares();
   return all.filter((s) => s.userId === userId);
@@ -3040,6 +3110,23 @@ export async function recordVideoShareVerification(params: {
     return {
       success: false,
       message: 'Esta publicação já foi submetida e validada anteriormente no sistema.',
+    };
+  }
+
+  // Daily limit check: 1 share per video per day per user (resets at midnight)
+  const dailyCheck = await canUserShareVideoToday({
+    userId: params.userId,
+    userEmail: params.userEmail,
+    videoId: params.videoId,
+    videoTitle: params.videoTitle,
+  });
+
+  if (!dailyCheck.canShare) {
+    return {
+      success: false,
+      message:
+        dailyCheck.reason ||
+        'Este vídeo já foi compartilhado por você hoje! Só é permitido compartilhar 1 vez cada vídeo da galeria por dia (liberado novamente à meia-noite). Compartilhe os outros vídeos disponíveis na galeria para continuar acumulando Tokens BXS.',
     };
   }
 

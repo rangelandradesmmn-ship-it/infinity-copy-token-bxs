@@ -533,6 +533,13 @@ export async function saveLandingPageDraft(
 ): Promise<{ success: boolean; message: string }> {
   const now = new Date().toISOString();
 
+  // Preserva as configurações ativas de estoque e recompensas para não sobrescrever o estoque real
+  const currentTokenSettings = await getTokenRewardSettings();
+  const contentToSave: LandingPageContent = {
+    ...content,
+    tokenRewardSettings: currentTokenSettings,
+  };
+
   if (isSupabaseConfigured() && supabase) {
     // Check if draft exists (use maybeSingle to avoid multiple rows error)
     const { data: existingDraft } = await supabase
@@ -547,7 +554,7 @@ export async function saveLandingPageDraft(
       const { error: updateErr } = await supabase
         .from('landing_page_versions')
         .update({
-          content_json: content,
+          content_json: contentToSave,
           created_by: adminId,
           created_at: now,
         })
@@ -560,7 +567,7 @@ export async function saveLandingPageDraft(
       const { error: insertErr } = await supabase.from('landing_page_versions').insert({
         id: `ver-draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         version_number: 0,
-        content_json: content,
+        content_json: contentToSave,
         status: 'draft',
         created_by: adminId,
         created_at: now,
@@ -577,13 +584,13 @@ export async function saveLandingPageDraft(
       const versions = getLocalItem<LandingPageVersion[]>(STORAGE_KEYS.VERSIONS, seedVersions);
       const draftIndex = versions.findIndex((v) => v.status === 'draft');
       if (draftIndex >= 0) {
-        versions[draftIndex].content_json = content;
+        versions[draftIndex].content_json = contentToSave;
         versions[draftIndex].created_at = now;
       } else {
         versions.push({
           id: `ver-draft-${Date.now()}`,
           version_number: 0,
-          content_json: content,
+          content_json: contentToSave,
           status: 'draft',
           created_by: adminId,
           created_at: now,
@@ -605,13 +612,13 @@ export async function saveLandingPageDraft(
   const draftIndex = versions.findIndex((v) => v.status === 'draft');
 
   if (draftIndex >= 0) {
-    versions[draftIndex].content_json = content;
+    versions[draftIndex].content_json = contentToSave;
     versions[draftIndex].created_at = now;
   } else {
     versions.push({
       id: `ver-${Date.now()}`,
       version_number: 0,
-      content_json: content,
+      content_json: contentToSave,
       status: 'draft',
       created_by: adminId,
       created_at: now,
@@ -631,6 +638,13 @@ export async function publishLandingPage(
   adminId: string
 ): Promise<{ success: boolean; versionNumber: number; message: string }> {
   const publishedAt = new Date().toISOString();
+
+  // Preserva as configurações ativas de estoque e recompensas para não sobrescrever o estoque real
+  const currentTokenSettings = await getTokenRewardSettings();
+  const contentToPublish: LandingPageContent = {
+    ...content,
+    tokenRewardSettings: currentTokenSettings,
+  };
 
   if (isSupabaseConfigured() && supabase) {
     // Get highest version number among published versions
@@ -671,7 +685,7 @@ export async function publishLandingPage(
       .insert({
         id: newVersionId,
         version_number: newVersionNumber,
-        content_json: content,
+        content_json: contentToPublish,
         status: 'published',
         created_by: adminId,
         published_at: publishedAt,
@@ -2855,20 +2869,50 @@ export async function getTokenRewardSettings(): Promise<TokenRewardSettings> {
 
   if (isSupabaseConfigured() && supabase) {
     try {
+      // 1. Prioridade Máxima: Evento em tempo real em landing_events
+      const { data: eventData } = await supabase
+        .from('landing_events')
+        .select('metadata, created_at')
+        .eq('page_path', '/reward/settings')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (eventData?.metadata && typeof eventData.metadata === 'object') {
+        const meta = eventData.metadata as any;
+        if (meta.tokenStock !== undefined && meta.tokenStock !== null) {
+          const stock = Number(meta.tokenStock);
+          return {
+            ...defaultSettings,
+            ...meta,
+            tokenStock: isNaN(stock) ? defaultSettings.tokenStock : stock,
+            minWithdrawal: Number(meta.minWithdrawal || defaultSettings.minWithdrawal),
+            rewardPerShare: Number(meta.rewardPerShare || defaultSettings.rewardPerShare),
+            isSharingEnabled: stock <= 0 ? false : meta.isSharingEnabled !== false,
+          };
+        }
+      }
+
+      // 2. Fallback: versão oficial publicada em landing_page_versions
       const { data } = await supabase
         .from('landing_page_versions')
         .select('content_json')
         .eq('status', 'published')
+        .gt('version_number', 0)
         .order('version_number', { ascending: false })
         .limit(1)
         .maybeSingle();
 
       if (data && data.content_json?.tokenRewardSettings) {
         const s = data.content_json.tokenRewardSettings as TokenRewardSettings;
+        const stock = Number(s.tokenStock);
         return {
           ...defaultSettings,
           ...s,
-          isSharingEnabled: s.tokenStock <= 0 ? false : s.isSharingEnabled !== false,
+          tokenStock: isNaN(stock) ? defaultSettings.tokenStock : stock,
+          minWithdrawal: Number(s.minWithdrawal || defaultSettings.minWithdrawal),
+          rewardPerShare: Number(s.rewardPerShare || defaultSettings.rewardPerShare),
+          isSharingEnabled: stock <= 0 ? false : s.isSharingEnabled !== false,
         };
       }
     } catch (err) {
@@ -2878,10 +2922,12 @@ export async function getTokenRewardSettings(): Promise<TokenRewardSettings> {
 
   initLocalDatabase();
   const local = getLocalItem<TokenRewardSettings>(STORAGE_KEYS.TOKEN_REWARD_SETTINGS, defaultSettings);
+  const stock = Number(local.tokenStock);
   return {
     ...defaultSettings,
     ...local,
-    isSharingEnabled: local.tokenStock <= 0 ? false : local.isSharingEnabled !== false,
+    tokenStock: isNaN(stock) ? defaultSettings.tokenStock : stock,
+    isSharingEnabled: stock <= 0 ? false : local.isSharingEnabled !== false,
   };
 }
 
@@ -2893,9 +2939,9 @@ export async function updateTokenRewardSettings(
   const updated: TokenRewardSettings = {
     ...current,
     ...settings,
-    tokenStock: settings.tokenStock !== undefined ? Number(settings.tokenStock) : current.tokenStock,
-    minWithdrawal: settings.minWithdrawal !== undefined ? Number(settings.minWithdrawal) : current.minWithdrawal,
-    rewardPerShare: settings.rewardPerShare !== undefined ? Number(settings.rewardPerShare) : current.rewardPerShare,
+    tokenStock: settings.tokenStock !== undefined ? Math.max(0, Number(settings.tokenStock)) : current.tokenStock,
+    minWithdrawal: settings.minWithdrawal !== undefined ? Math.max(1, Number(settings.minWithdrawal)) : current.minWithdrawal,
+    rewardPerShare: settings.rewardPerShare !== undefined ? Math.max(1, Number(settings.rewardPerShare)) : current.rewardPerShare,
   };
 
   // If token stock reaches 0 or below, automatically lock sharing!
@@ -2908,13 +2954,29 @@ export async function updateTokenRewardSettings(
   // Save to local storage
   setLocalItem(STORAGE_KEYS.TOKEN_REWARD_SETTINGS, updated);
 
-  // Sync with Supabase published version if available
+  // Sync with Supabase
   if (isSupabaseConfigured() && supabase) {
     try {
+      // 1. Gravar evento de configuração dedicada em landing_events (persistente e imutável)
+      await supabase.from('landing_events').insert({
+        id: `set-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        event_type: 'token_settings',
+        page_path: '/reward/settings',
+        session_id: updated.isSharingEnabled ? 'active' : 'paused',
+        metadata: {
+          type: 'token_reward_settings',
+          ...updated,
+          updated_by: adminId,
+          updated_at: new Date().toISOString(),
+        },
+      });
+
+      // 2. Sincronizar na versão publicada mais recente de landing_page_versions
       const { data } = await supabase
         .from('landing_page_versions')
         .select('*')
         .eq('status', 'published')
+        .gt('version_number', 0)
         .order('version_number', { ascending: false })
         .limit(1)
         .maybeSingle();

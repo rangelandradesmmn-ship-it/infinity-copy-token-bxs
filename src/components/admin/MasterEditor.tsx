@@ -12,7 +12,12 @@ import {
   FaqItem,
   AspectRatio,
 } from '@/types';
-import { saveLandingPageDraft, publishLandingPage, normalizeLandingPageContent } from '@/lib/dataService';
+import {
+  saveLandingPageDraft,
+  publishLandingPage,
+  normalizeLandingPageContent,
+  getTokenRewardSettings,
+} from '@/lib/dataService';
 import { initialLandingPageContent } from '@/data/defaultLandingPage';
 import { COUNTRY_OPTIONS, cleanLocalPhoneNumber } from '@/lib/security';
 import { VideoPlayer } from '@/components/ui/VideoPlayer';
@@ -80,6 +85,13 @@ export function MasterEditor({
     if (initialContent) {
       setContent(normalizeLandingPageContent(initialContent));
     }
+    // Sincroniza em tempo real com as configurações ativas de estoque e recompensas do Super Admin
+    getTokenRewardSettings().then((liveSettings) => {
+      setContent((prev) => ({
+        ...prev,
+        tokenRewardSettings: liveSettings,
+      }));
+    });
   }, [initialContent]);
   const [activeTab, setActiveTab] = useState<
     'brand' | 'hero' | 'videos' | 'benefits' | 'consultant' | 'testimonials' | 'faq' | 'token' | 'cta' | 'defaults' | 'channels'

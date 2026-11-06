@@ -106,7 +106,10 @@ export function VideoShareModal({
 
   if (!isOpen) return null;
 
-  const isStockDepleted = (rewardSettings?.tokenStock ?? 5000) <= 0 || rewardSettings?.isSharingEnabled === false;
+  const isStockDepleted =
+    rewardSettings?.tokenStock !== undefined
+      ? rewardSettings.tokenStock <= 0
+      : false || rewardSettings?.isSharingEnabled === false;
   const rewardAmount = rewardSettings?.rewardPerShare || 1;
 
   // Share text and links

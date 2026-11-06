@@ -849,6 +849,7 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
   );
 
   // 92. Super Admin consulta e edita o estoque e o mínimo de retirada
+  const prevSettingsBeforeRewardTests = await getTokenRewardSettings();
   const updatedSettings = await updateTokenRewardSettings({
     tokenStock: 3000,
     minWithdrawal: 50,
@@ -952,12 +953,12 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
     '98. Super Admin quita saque informando Hash BSC, atualiza status para pago e debita do estoque de tokens disponíveis'
   );
 
-  // Teardown / Restauração dos padrões de recompensas
+  // Teardown / Restauração das configurações reais de recompensas existentes
   await updateTokenRewardSettings({
-    tokenStock: 5000,
-    minWithdrawal: 100,
-    rewardPerShare: 1,
-    isSharingEnabled: true,
+    tokenStock: prevSettingsBeforeRewardTests.tokenStock,
+    minWithdrawal: prevSettingsBeforeRewardTests.minWithdrawal,
+    rewardPerShare: prevSettingsBeforeRewardTests.rewardPerShare,
+    isSharingEnabled: prevSettingsBeforeRewardTests.isSharingEnabled,
   });
 
   console.log('\n--- MÓDULO 25: BOTÃO SIMULADOR ONLINE NO CABEÇALHO & SUPER ADMIN ---');
@@ -1008,6 +1009,7 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
   console.log('\n--- MÓDULO 26: LIMITE DIÁRIO DE 1 COMPARTILHAMENTO POR VÍDEO & RESET À MEIA-NOITE ---');
 
   const testDailyUserId = `test-daily-user-${Date.now()}`;
+  const testDailyUserEmail = `teste.diario.${Date.now()}.${Math.random().toString(36).substring(2, 6)}@infinitycopy.com`;
   const testVideo1Id = 'vid-apresentacao-oficial';
   const testVideo2Id = 'vid-tutorial-backoffice';
 
@@ -1015,7 +1017,7 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
   const firstShareResult = await recordVideoShareVerification({
     userId: testDailyUserId,
     userName: 'Usuário Teste Diário',
-    userEmail: 'teste.diario@infinitycopy.com',
+    userEmail: testDailyUserEmail,
     videoId: testVideo1Id,
     videoTitle: 'Apresentação Oficial Infinity Copy',
     postUrl: `https://www.facebook.com/teste/posts/${Date.now()}_1`,
@@ -1029,7 +1031,7 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
   const duplicateSameDayResult = await recordVideoShareVerification({
     userId: testDailyUserId,
     userName: 'Usuário Teste Diário',
-    userEmail: 'teste.diario@infinitycopy.com',
+    userEmail: testDailyUserEmail,
     videoId: testVideo1Id,
     videoTitle: 'Apresentação Oficial Infinity Copy',
     postUrl: `https://www.facebook.com/teste/posts/${Date.now()}_2`,
@@ -1046,7 +1048,7 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
   const secondDifferentVideoResult = await recordVideoShareVerification({
     userId: testDailyUserId,
     userName: 'Usuário Teste Diário',
-    userEmail: 'teste.diario@infinitycopy.com',
+    userEmail: testDailyUserEmail,
     videoId: testVideo2Id,
     videoTitle: 'Tutorial Completo do Backoffice',
     postUrl: `https://www.facebook.com/teste/posts/${Date.now()}_3`,
@@ -1061,7 +1063,7 @@ assert(encodedShareUrl.includes(encodeURIComponent(partnerLandingUrl)), '31. URL
   tomorrowDate.setDate(tomorrowDate.getDate() + 1); // Dia seguinte (passou da meia-noite)
   const canShareTomorrow = await canUserShareVideoToday({
     userId: testDailyUserId,
-    userEmail: 'teste.diario@infinitycopy.com',
+    userEmail: testDailyUserEmail,
     videoId: testVideo1Id,
     videoTitle: 'Apresentação Oficial Infinity Copy',
     referenceDate: tomorrowDate,

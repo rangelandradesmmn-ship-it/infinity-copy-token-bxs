@@ -211,7 +211,7 @@ export default function AdminDashboardPage() {
 
           {/* Feature 4: Programa de Recompensas em Tokens BXS & Solicitações de Saque */}
           <div id="rewards">
-            <AdminTokenRewards />
+            <AdminTokenRewards currentAdminId={currentUser?.id} />
           </div>
 
           {/* Users Table */}

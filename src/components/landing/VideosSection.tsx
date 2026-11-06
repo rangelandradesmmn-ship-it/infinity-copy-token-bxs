@@ -68,7 +68,7 @@ export function VideosSection({
 
   const isSharingActive =
     tokenRewardSettings?.isSharingEnabled !== false &&
-    (tokenRewardSettings?.tokenStock ?? 5000) > 0;
+    (tokenRewardSettings?.tokenStock !== undefined ? tokenRewardSettings.tokenStock > 0 : true);
 
   const rewardPerShare = tokenRewardSettings?.rewardPerShare || 1;
   const totalGalleryVideos = videosSection.videos.length;

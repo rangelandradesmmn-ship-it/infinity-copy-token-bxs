@@ -33,7 +33,11 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-export function AdminTokenRewards() {
+interface AdminTokenRewardsProps {
+  currentAdminId?: string;
+}
+
+export function AdminTokenRewards({ currentAdminId = 'user-rangel-0001' }: AdminTokenRewardsProps) {
   const [settings, setSettings] = useState<TokenRewardSettings>({
     tokenStock: 5000,
     minWithdrawal: 100,
@@ -100,16 +104,21 @@ export function AdminTokenRewards() {
     setSavingSettings(true);
     setFeedback(null);
 
-    const newStock = Math.max(0, parseInt(stockInput, 10) || 0);
-    const newMin = Math.max(1, parseInt(minWithdrawalInput, 10) || 100);
-    const newReward = Math.max(1, parseInt(rewardPerShareInput, 10) || 1);
+    const parsedStock = stockInput.trim() === '' ? 0 : parseInt(stockInput, 10);
+    const newStock = isNaN(parsedStock) ? 0 : Math.max(0, parsedStock);
+
+    const parsedMin = minWithdrawalInput.trim() === '' ? 100 : parseInt(minWithdrawalInput, 10);
+    const newMin = isNaN(parsedMin) ? 100 : Math.max(1, parsedMin);
+
+    const parsedReward = rewardPerShareInput.trim() === '' ? 1 : parseInt(rewardPerShareInput, 10);
+    const newReward = isNaN(parsedReward) ? 1 : Math.max(1, parsedReward);
 
     const updated = await updateTokenRewardSettings({
       tokenStock: newStock,
       minWithdrawal: newMin,
       rewardPerShare: newReward,
       isSharingEnabled: newStock > 0 ? sharingEnabledInput : false,
-    });
+    }, currentAdminId);
 
     setSettings(updated);
     setStockInput(String(updated.tokenStock));
@@ -120,9 +129,9 @@ export function AdminTokenRewards() {
     setSavingSettings(false);
     setFeedback({
       type: 'success',
-      message: 'Configurações de Token BXS salvas com sucesso!',
+      message: `Configurações de Token BXS salvas com sucesso! Estoque: ${updated.tokenStock} BXS | Retirada Mínima: ${updated.minWithdrawal} BXS`,
     });
-    setTimeout(() => setFeedback(null), 4000);
+    setTimeout(() => setFeedback(null), 5000);
   };
 
   const handlePayWithdrawal = async (withdrawalId: string) => {
@@ -280,23 +289,65 @@ export function AdminTokenRewards() {
         <form onSubmit={handleSaveSettings}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {/* Campo 1: Estoque de Tokens Disponíveis */}
-            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Estoque de Tokens BXS
-              </label>
-              <div className="relative mt-1">
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={stockInput}
-                  onChange={(e) => setStockInput(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg px-3 py-2 text-lg font-black text-amber-400 focus:outline-none"
-                  required
-                />
-                <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-500">
-                  BXS
-                </span>
+            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Estoque de Tokens BXS
+                </label>
+                <div className="relative mt-1">
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={stockInput}
+                    onChange={(e) => setStockInput(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg pl-3 pr-14 py-2 text-lg font-black text-amber-400 focus:outline-none"
+                    required
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-500 pointer-events-none select-none">
+                    BXS
+                  </span>
+                </div>
+                {/* Atalhos rápidos de ajuste de estoque */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = parseInt(stockInput, 10) || 0;
+                      setStockInput(String(cur + 500));
+                    }}
+                    className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition"
+                  >
+                    +500
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = parseInt(stockInput, 10) || 0;
+                      setStockInput(String(cur + 1000));
+                    }}
+                    className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition"
+                  >
+                    +1.000
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = parseInt(stockInput, 10) || 0;
+                      setStockInput(String(cur + 5000));
+                    }}
+                    className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition"
+                  >
+                    +5.000
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStockInput('0')}
+                    className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition"
+                  >
+                    Zerar
+                  </button>
+                </div>
               </div>
               <p className="text-[11px] text-slate-500 mt-2">
                 {isStockEmpty ? (
@@ -308,23 +359,42 @@ export function AdminTokenRewards() {
             </div>
 
             {/* Campo 2: Retirada Mínima */}
-            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Retirada Mínima
-              </label>
-              <div className="relative mt-1">
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={minWithdrawalInput}
-                  onChange={(e) => setMinWithdrawalInput(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 focus:border-blue-500 rounded-lg px-3 py-2 text-lg font-black text-white focus:outline-none"
-                  required
-                />
-                <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-500">
-                  BXS
-                </span>
+            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Retirada Mínima
+                </label>
+                <div className="relative mt-1">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={minWithdrawalInput}
+                    onChange={(e) => setMinWithdrawalInput(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-blue-500 rounded-lg pl-3 pr-14 py-2 text-lg font-black text-white focus:outline-none"
+                    required
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-500 pointer-events-none select-none">
+                    BXS
+                  </span>
+                </div>
+                {/* Atalhos rápidos de retirada mínima */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  {[10, 50, 100, 500].map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setMinWithdrawalInput(String(val))}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition border ${
+                        minWithdrawalInput === String(val)
+                          ? 'bg-blue-600 text-white border-blue-500'
+                          : 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border-blue-500/20'
+                      }`}
+                    >
+                      {val}
+                    </button>
+                  ))}
+                </div>
               </div>
               <p className="text-[11px] text-slate-500 mt-2">
                 Padrão 100 BXS. Editável a qualquer momento.
@@ -332,23 +402,42 @@ export function AdminTokenRewards() {
             </div>
 
             {/* Campo 3: Recompensa por Compartilhamento */}
-            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Recompensa / Vídeo
-              </label>
-              <div className="relative mt-1">
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={rewardPerShareInput}
-                  onChange={(e) => setRewardPerShareInput(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-lg px-3 py-2 text-lg font-black text-emerald-400 focus:outline-none"
-                  required
-                />
-                <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-500">
-                  BXS
-                </span>
+            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Recompensa / Vídeo
+                </label>
+                <div className="relative mt-1">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={rewardPerShareInput}
+                    onChange={(e) => setRewardPerShareInput(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-lg pl-3 pr-14 py-2 text-lg font-black text-emerald-400 focus:outline-none"
+                    required
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-500 pointer-events-none select-none">
+                    BXS
+                  </span>
+                </div>
+                {/* Atalhos de recompensa por vídeo */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  {[1, 2, 5, 10].map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setRewardPerShareInput(String(val))}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition border ${
+                        rewardPerShareInput === String(val)
+                          ? 'bg-emerald-600 text-white border-emerald-500'
+                          : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20'
+                      }`}
+                    >
+                      {val} BXS
+                    </button>
+                  ))}
+                </div>
               </div>
               <p className="text-[11px] text-slate-500 mt-2">
                 Creditado por compartilhamento público verificado.
